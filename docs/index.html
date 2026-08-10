@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>General ML Topics — An Interactive Machine-Learning Textbook</title>
+<title>ML Handbook — A Practical Guide for Professionals</title>
 <script>
 window.MathJax = {
   tex: { inlineMath: [['$','$'], ['\\(','\\)']],
@@ -586,14 +586,14 @@ document.addEventListener('DOMContentLoaded', function () {
 <body>
 <button id="sbtoggle" aria-label="toggle contents">&#9776;</button>
 <nav id="sidebar">
-  <h1>General ML Topics</h1>
-  <div class="crumb">an interactive machine-learning textbook</div>
+  <h1>ML Handbook</h1>
+  <div class="crumb">a practical guide for professionals</div>
   <input id="tocfilter" type="text" placeholder="filter topics&hellip;">
   <ul id="toc"></ul>
-  <div class="navlinks">Theory &middot; derivations &middot; worked examples &middot; interactive labs &middot; coding drills.<div style="margin-top:8px"><a href="test_set.html"><b>&#9998; Question Bank</b></a> — 128 MCQs + 50 in-browser coding problems</div></div>
+  <div class="navlinks">Theory &middot; derivations &middot; worked examples &middot; interactive labs &middot; coding drills.<div style="margin-top:8px"><a href="test_set.html"><b>&#9998; Question Bank</b></a> — 128 MCQs + 55 in-browser coding problems</div></div>
 </nav>
 <main id="main">
-<h1 class="title">Machine Learning — Complete Study Notes</h1>
+<h1 class="title">ML Handbook — Machine Learning: A Practical Guide for Professionals</h1>
 <div class="subtitle">an interactive textbook — theory, step-by-step derivations, worked examples, widgets &amp; coding labs</div>
 
 <h2 id="s01">1 &nbsp; When Can Machines Learn?</h2>
@@ -7635,7 +7635,14 @@ salary/age examples), using native categorical support and the learned default d
 §13.10 for missing values &mdash; verified on xgboost 3.4.0
 <!-- prov: s13_xgb_practical.json:xgboost_version -->:</p>
 
-<pre><code># preprocessing: order-preserving transforms are unnecessary — encode intent, not scale
+<pre><code>import numpy as np
+import pandas as pd
+import xgboost as xgb                                   # the package; gives xgb.DMatrix, xgb.train, xgb.cv
+from xgboost import XGBClassifier, XGBRegressor         # the sklearn-API wrappers
+from sklearn.model_selection import train_test_split
+print(xgb.__version__)        # enable_categorical needs &gt;= 1.6; tree_method="hist" is the default from 2.0
+
+# preprocessing: order-preserving transforms are unnecessary — encode intent, not scale
 df["city"] = df["city"].astype("category")   # native categoricals (enable_categorical)
 # leave salary's NaNs alone: each split learns a default direction (see 13.10)
 
@@ -7656,6 +7663,173 @@ validation/test. Encoding the splits separately silently produces two different 
 garbage predictions &mdash; the xgboost documentation calls this out explicitly. Prefer
 low-cardinality one-hot; for high-cardinality features prefer native categorical support or
 target statistics (what CatBoost automates, §13.12).</div>
+
+<h4>The two APIs: sklearn wrapper vs native booster</h4>
+
+<p>XGBoost ships <em>two</em> front ends onto the same C++ booster, and test questions phrase
+themselves in whichever one the setter learned. Know both, and know that
+<code>clf.get_booster()</code> converts one into the other for free.</p>
+
+<ul>
+<li><b>The sklearn wrapper</b> &mdash; <code>XGBClassifier</code> / <code>XGBRegressor</code> (also
+<code>XGBRanker</code>). It has <code>.fit / .predict / .predict_proba / .score</code>, so it drops
+straight into <code>Pipeline</code>, <code>ColumnTransformer</code>, <code>cross_val_score</code>,
+<code>GridSearchCV</code>/<code>RandomizedSearchCV</code> and <code>SelectFromModel</code>. Use it by
+default; almost every marking scheme expects this shape.</li>
+<li><b>The native API</b> &mdash; <code>xgb.DMatrix</code> + <code>xgb.train</code> + <code>xgb.cv</code>.
+Reach for it when you need a <em>custom objective or metric</em> (pass your own
+<code>obj=</code> returning $(g_i, h_i)$, or <code>custom_metric=</code>), <em>exact early-stopping
+control</em> (which watch-list entry drives it, <code>iteration_range</code> at predict time), or
+<code>xgb.cv</code>'s <em>per-round cross-validation table</em> &mdash; a full learning curve of
+mean&nbsp;&plusmn;&nbsp;std per boosting round that the wrapper simply cannot produce.</li>
+</ul>
+
+<p>The only real friction is that the two use different names for the same knob:</p>
+
+<div class="scrollx"><table>
+<thead><tr><th class="l">sklearn wrapper</th><th class="l">native <code>params</code> dict</th><th class="l">note</th></tr></thead>
+<tbody>
+<tr><td class="l"><code>n_estimators</code></td><td class="l"><code>num_boost_round</code> (argument, not a param)</td><td class="l">$M$, the number of trees</td></tr>
+<tr><td class="l"><code>learning_rate</code></td><td class="l"><code>eta</code></td><td class="l">$\nu$ of §13.4</td></tr>
+<tr><td class="l"><code>reg_lambda</code> / <code>reg_alpha</code></td><td class="l"><code>lambda</code> / <code>alpha</code></td><td class="l">$\lambda$ of §13.7</td></tr>
+<tr><td class="l"><code>gamma</code></td><td class="l"><code>gamma</code> (a.k.a. <code>min_split_loss</code>)</td><td class="l">$\gamma$ of §13.7</td></tr>
+<tr><td class="l"><code>random_state</code></td><td class="l"><code>seed</code></td><td class="l">same thing</td></tr>
+<tr><td class="l"><code>n_jobs</code></td><td class="l"><code>nthread</code></td><td class="l">same thing</td></tr>
+</tbody></table></div>
+<p class="small"></p>
+
+<details class="code"><summary>Code — the same model twice: sklearn wrapper, then native <code>DMatrix</code>/<code>xgb.train</code>, plus <code>xgb.cv</code></summary>
+<pre><code>import numpy as np
+import pandas as pd
+import xgboost as xgb
+from xgboost import XGBClassifier
+from sklearn.model_selection import train_test_split
+
+rng = np.random.default_rng(0)
+n = 800
+X = pd.DataFrame({
+    "age":    rng.integers(18, 65, n).astype(float),
+    "salary": rng.normal(12, 4, n).clip(2, 30),
+    "city":   pd.Categorical(rng.choice(["kolkata", "mumbai", "delhi"], n)),   # category dtype
+})
+lin   = 0.05 * X["age"] + 0.25 * X["salary"] - 5.0
+y     = (rng.random(n) &lt; 1 / (1 + np.exp(-lin))).astype(int)   # classification target
+spend = 40 * lin + rng.normal(0, 5, n)                         # regression target, used by xgb.cv below
+Xtr, Xva, ytr, yva = train_test_split(X, y, test_size=0.25, stratify=y, random_state=0)</code></pre>
+<pre><code># ---------- API 1: sklearn wrapper — Pipeline / GridSearchCV / SelectFromModel all work ----------
+clf = XGBClassifier(
+    n_estimators=2000, learning_rate=0.05, max_depth=4,        # sklearn NAMES
+    tree_method="hist", enable_categorical=True,
+    eval_metric="logloss", early_stopping_rounds=50, random_state=0,
+)
+clf.fit(Xtr, ytr, eval_set=[(Xva, yva)], verbose=False)
+clf.best_iteration, clf.best_score        # where early stopping fired, and the metric there
+p_wrap = clf.predict_proba(Xva)[:, 1]     # predict_proba already truncates at the best iteration</code></pre>
+<pre><code># ---------- API 2: native booster — custom objectives, xgb.cv, exact control ----------
+dtrain = xgb.DMatrix(Xtr, label=ytr, enable_categorical=True)   # label=, not a second positional y
+dvalid = xgb.DMatrix(Xva, label=yva, enable_categorical=True)
+
+params = {
+    "objective": "binary:logistic",   # picks g_i, h_i (13.7); reg:squarederror for regression
+    "eval_metric": "logloss",
+    "eta": 0.05,                      # == learning_rate
+    "max_depth": 4,
+    "tree_method": "hist", "seed": 0,
+}
+evals = [(dtrain, "train"), (dvalid, "valid")]   # the LAST entry is the one early stopping watches
+
+bst = xgb.train(params, dtrain,
+                num_boost_round=2000,            # == n_estimators
+                evals=evals, early_stopping_rounds=50, verbose_eval=False)
+
+bst.best_iteration                               # 0-indexed index of the best round
+p_nat = bst.predict(dvalid, iteration_range=(0, bst.best_iteration + 1))   # +1: end is exclusive
+np.abs(p_wrap - p_nat).max()   # identical predictions: same seed, same params, same booster</code></pre>
+<pre><code># ---------- xgb.cv: the per-round CV table the wrapper cannot give you ----------
+dall = xgb.DMatrix(X, label=spend, enable_categorical=True)     # regression target -&gt; rmse
+reg_params = {"objective": "reg:squarederror", "eta": 0.05, "max_depth": 4,
+              "tree_method": "hist", "seed": 0}
+cv = xgb.cv(reg_params, dall,
+            num_boost_round=1000, nfold=5, metrics="rmse",
+            early_stopping_rounds=50, seed=0, as_pandas=True)
+
+cv.columns        # ['train-rmse-mean', 'train-rmse-std', 'test-rmse-mean', 'test-rmse-std']
+best_rounds = cv["test-rmse-mean"].idxmin() + 1                 # +1: rows are 0-indexed rounds
+cv["test-rmse-mean"].min(), cv["test-rmse-std"][best_rounds - 1]   # score AND its fold spread
+# then REFIT on ALL the data with num_boost_round=best_rounds — that is the model you ship
+final = xgb.train(reg_params, dall, num_boost_round=best_rounds)</code></pre>
+<p class="wnote">Interview line: <em>they are the same booster</em> &mdash; the wrapper is a thin sklearn
+adapter over <code>xgb.train</code>, and <code>clf.get_booster()</code> hands you the native object, so
+you can tune with <code>GridSearchCV</code> and then inspect, dump or plot natively. Go native only for a
+custom objective/metric, for <code>xgb.cv</code>'s per-round table, or when you must control
+<code>iteration_range</code>. Two pitfalls worth saying out loud: native <code>bst.predict</code> uses
+<em>all</em> rounds unless you pass <code>iteration_range</code> (the wrapper does it for you), and
+<code>xgb.cv</code> returns a table of <em>rounds</em>, not a fitted model &mdash; you still have to refit.</p>
+</details>
+
+<div class="warn"><b>Gotcha &mdash; where <code>early_stopping_rounds</code> lives.</b> Since xgboost 2.0 the
+sklearn wrapper takes it in the <em>constructor</em> (as above), not in <code>.fit()</code>; older code
+passing <code>clf.fit(..., early_stopping_rounds=30)</code> raises a <code>TypeError</code>. In the native
+API it stays an argument of <code>xgb.train</code>/<code>xgb.cv</code>. Either way it needs an
+<code>eval_set</code>/<code>evals</code> to watch, and that watch-list must <em>not</em> be your test set if
+you intend to report an honest test score &mdash; early stopping on the test fold is leakage (§6).</div>
+
+<h4>The parameters that actually matter</h4>
+
+<p>§13.11 lists what the handwritten source names; this is the working set, grouped by the <em>role</em> a
+parameter plays, which is how you should reason about them under time pressure. Defaults are xgboost's own;
+&ldquo;typical&rdquo; is the practitioner search range.</p>
+
+<div class="scrollx"><table>
+<thead><tr><th class="l">param</th><th class="l">role</th><th class="l">typical range (default)</th><th class="l">what increasing it does</th><th class="l">overfitting direction</th></tr></thead>
+<tbody>
+<tr><td class="l"><code>max_depth</code></td><td class="l">capacity</td><td class="l">3&ndash;8 (6)</td><td class="l">deeper trees &rArr; interactions of higher order (depth $d$ captures $d$-way interactions)</td><td class="l">&uarr; overfits &mdash; the first knob to cut</td></tr>
+<tr><td class="l"><code>min_child_weight</code></td><td class="l">capacity</td><td class="l">1&ndash;10 (1)</td><td class="l">floor on a leaf's Hessian mass $H_j = \sum_{i \in I_j} h_i$ (§13.7); a split is refused if either child falls below it</td><td class="l">&uarr; underfits (regularises)</td></tr>
+<tr><td class="l"><code>gamma</code> / <code>min_split_loss</code></td><td class="l">capacity (pruning)</td><td class="l">0&ndash;5 (0)</td><td class="l">the §13.7 pruning threshold: a split survives only if $\text{Gain} &gt; \gamma$</td><td class="l">&uarr; underfits (fewer leaves)</td></tr>
+<tr><td class="l"><code>subsample</code></td><td class="l">sampling (rows)</td><td class="l">0.6&ndash;1.0 (1.0)</td><td class="l">fraction of rows drawn per tree; lower = more randomness, decorrelated trees</td><td class="l">&darr; regularises; below ~0.5 it just adds noise</td></tr>
+<tr><td class="l"><code>colsample_bytree</code></td><td class="l">sampling (columns)</td><td class="l">0.5&ndash;1.0 (1.0)</td><td class="l">fraction of features per tree (also <code>_bylevel</code>, <code>_bynode</code>); the §11 Random-Forest trick</td><td class="l">&darr; regularises, and dilutes a dominant feature</td></tr>
+<tr><td class="l"><code>learning_rate</code> / <code>eta</code></td><td class="l">shrinkage</td><td class="l">0.01&ndash;0.3 (0.3)</td><td class="l">scales every tree's contribution (§13.4); larger = fewer, bolder steps</td><td class="l">&uarr; overfits &amp; is unstable; &darr; needs more trees</td></tr>
+<tr><td class="l"><code>n_estimators</code> / <code>num_boost_round</code></td><td class="l">shrinkage (paired)</td><td class="l">set it high (2000&ndash;5000) and let early stopping choose</td><td class="l">more boosting rounds; the product with the learning rate is what matters</td><td class="l">&uarr; overfits &mdash; but <b>never grid-search it</b></td></tr>
+<tr><td class="l"><code>reg_lambda</code> (L2)</td><td class="l">regularisation</td><td class="l">0&ndash;10 (1)</td><td class="l">the $\lambda$ in the similarity score $G_j^2/(H_j+\lambda)$ and in $w_j^{*} = -G_j/(H_j+\lambda)$ (§13.7); shrinks leaves with little Hessian mass hardest</td><td class="l">&uarr; underfits (smaller leaf outputs)</td></tr>
+<tr><td class="l"><code>reg_alpha</code> (L1)</td><td class="l">regularisation</td><td class="l">0&ndash;10 (0)</td><td class="l">L1 on leaf weights; can drive a leaf output to exactly zero</td><td class="l">&uarr; underfits; use for sparse/wide feature sets</td></tr>
+<tr><td class="l"><code>scale_pos_weight</code></td><td class="l">imbalance</td><td class="l">$n_{\text{neg}}/n_{\text{pos}}$ (1)</td><td class="l">multiplies the positive class's $g_i, h_i$, so a rare positive counts as several rows</td><td class="l">not an overfitting knob &mdash; it moves the operating point, and it distorts calibrated probabilities</td></tr>
+<tr><td class="l"><code>early_stopping_rounds</code></td><td class="l">control</td><td class="l">20&ndash;100 (off)</td><td class="l">patience: stop after this many rounds with no improvement on the watch list</td><td class="l">too small stops on noise; too large wastes time only</td></tr>
+<tr><td class="l"><code>eval_metric</code></td><td class="l">control</td><td class="l"><code>logloss</code>, <code>auc</code>, <code>aucpr</code>, <code>error</code>; <code>rmse</code>, <code>mae</code></td><td class="l">what early stopping and the watch list report; independent of <code>objective</code></td><td class="l">pick the metric you are actually scored on (§5); <code>aucpr</code> under heavy imbalance</td></tr>
+<tr><td class="l"><code>tree_method</code></td><td class="l">control</td><td class="l"><code>"hist"</code> (default from 2.0)</td><td class="l">histogram binning of the split candidates &mdash; the LightGBM trick, orders of magnitude faster than <code>"exact"</code></td><td class="l">no real accuracy cost; required for <code>enable_categorical</code></td></tr>
+<tr><td class="l"><code>enable_categorical</code></td><td class="l">control</td><td class="l"><code>True</code>/<code>False</code> (False)</td><td class="l">lets pandas <code>category</code> columns be split on natively &mdash; no one-hot (§13.12)</td><td class="l">high-cardinality categoricals can overfit; pair with <code>max_cat_to_onehot</code></td></tr>
+<tr><td class="l"><code>n_jobs</code> / <code>nthread</code></td><td class="l">control</td><td class="l">$-1$ (all cores)</td><td class="l">threads used for split finding</td><td class="l">no effect on the fit, only on the clock</td></tr>
+<tr><td class="l"><code>random_state</code> / <code>seed</code></td><td class="l">control</td><td class="l">any int (0)</td><td class="l">seeds row/column subsampling &mdash; only matters if either is &lt; 1</td><td class="l">set it, always, or your numbers will not reproduce</td></tr>
+</tbody></table></div>
+<p class="small"></p>
+
+<div class="summary"><b>Tuning order &mdash; do it in this sequence.</b> This is Fig. 13.10's final box made
+concrete, and it is deliberately greedy: each stage's choice is stable enough for the next stage to sit on top
+of it.
+<ol>
+<li><b>Fix the shrinkage pair first.</b> Set <code>learning_rate</code> to 0.05&ndash;0.1, set
+<code>n_estimators</code> absurdly high, and let <code>early_stopping_rounds</code> pick $M$. That single
+run gives you a working baseline <em>and</em> the round budget everything else is judged against. Never put
+<code>n_estimators</code> in the grid &mdash; it is the one hyperparameter the training run reveals for free.</li>
+<li><b>Then capacity</b>: <code>max_depth</code> (3&ndash;8) with <code>min_child_weight</code> (1&ndash;10).
+These interact, so search them jointly; they are where most of the overfitting lives.</li>
+<li><b>Then sampling</b>: <code>subsample</code> and <code>colsample_bytree</code> over 0.6&ndash;1.0. Cheap,
+low-risk variance reduction.</li>
+<li><b>Then the regularisers</b>: <code>gamma</code>, <code>reg_lambda</code>, <code>reg_alpha</code> &mdash;
+only if train&ndash;validation gap remains after the above.</li>
+<li><b>Finally, drop the learning rate</b> (say 0.1 &rarr; 0.02) and re-run early stopping once. Almost always
+worth a little more, always costs more trees.</li>
+</ol>
+If the clock is short, do step 1 and stop: a well-early-stopped default XGBoost is a strong baseline, and
+grid-searching depth on an unstopped model measures nothing but the grid.</div>
+
+<div class="note"><b>Imbalance: <code>scale_pos_weight</code> before resampling.</b> Set it to
+$n_{\text{neg}}/n_{\text{pos}}$ on the <em>training</em> fold. It reweights the gradients rather than
+inventing rows, so it costs nothing, cannot leak synthetic neighbours across a CV split the way a
+carelessly-placed SMOTE can, and leaves the data untouched. Prefer it whenever the loss is what you care
+about; prefer resampling (SMOTE and friends, §14) when the minority class is so small that the <em>split
+finder</em> never sees enough positives in a node to form a threshold at all. Either way, judge the result on
+PR-AUC / recall at a fixed precision, not accuracy, and remember that both distort probability calibration
+&mdash; recalibrate if you need probabilities (§14, §5).</div>
 
 <h4>The three importance lenses: weight, gain, cover</h4>
 
@@ -7702,7 +7876,142 @@ salary and age split early on big nodes. When importances must support a decisio
 with permutation importance on held-out data or SHAP values (§14), which also handle the
 credit-splitting between correlated features more honestly.</div>
 
+<details class="code"><summary>Code — the three importances side-by-side, and the <code>get_score</code> crib</summary>
+<pre><code>import matplotlib.pyplot as plt
+import xgboost as xgb
+
+bst = clf.get_booster()          # clf = the fitted XGBClassifier; -&gt; the native Booster the plots want
+# a booster trained from a numpy DMatrix shows f0, f1, f2 ... — name the columns first:
+bst.feature_names = list(Xtr.columns)
+
+fig, axes = plt.subplots(1, 3, figsize=(15, 4))
+for ax, t in zip(axes, ["weight", "gain", "total_gain"]):
+    xgb.plot_importance(bst, importance_type=t, ax=ax,
+                        title=t, xlabel="", show_values=False, height=0.5)
+fig.tight_layout()
+plt.show()      # read them side by side: the ORDER changing between panels is the signal</code></pre>
+<pre><code># the crib — all five types in one frame (memorise this; it is two lines)
+import pandas as pd
+types = ["weight", "gain", "cover", "total_gain", "total_cover"]
+imp = pd.DataFrame({t: bst.get_score(importance_type=t) for t in types}).fillna(0.0)
+imp.sort_values("total_gain", ascending=False)
+# fillna is NOT cosmetic: get_score OMITS never-split features, so absent means zero
+
+clf.feature_importances_        # sklearn view: normalised to sum 1, "gain" by default for gbtree
+xgb.plot_importance(clf, importance_type="gain")     # the wrapper is accepted here too</code></pre>
+<p class="wnote">Interview line: <em>match the lens to the claim.</em> &ldquo;The model leans on this feature&rdquo;
+&rarr; <b>total_gain</b> (sum, so it does not reward a feature for one lucky split). &ldquo;This feature is
+used constantly&rdquo; &rarr; <b>weight</b> &mdash; and remember it is exactly the lens that ranked
+<code>noise_id</code> second here, because a continuous noise column offers endless thresholds to nibble on.
+&ldquo;This feature decides things near the root, for many rows&rdquo; &rarr; <b>cover</b>. &ldquo;Removing
+this feature would cost us&rdquo; &rarr; <em>none of the five</em>: they are all read off the <em>training</em>
+structure, so the referee is held-out permutation importance or SHAP (§14), which is what exposed
+<code>noise_id</code>'s negative contribution above. Plot all three, and if the ranking flips between panels,
+say so rather than quoting one.</p>
+</details>
+
+<h4>Feature engineering &amp; selection for XGBoost</h4>
+
+<p>A gradient-boosted tree can express any axis-aligned step function given enough depth, which
+tempts people into believing it needs no feature engineering. What it cannot do is form a
+<em>new axis</em>: every split compares one raw column against one threshold, so any quantity
+that lives in a <em>ratio</em>, a <em>difference</em>, or a <em>group summary</em> has to be handed
+to it as a column. That is the whole rule, and it decides both lists below.</p>
+
+<div class="scrollx"><table>
+<thead><tr><th class="l">BUILD these &mdash; the tree cannot form them</th><th class="l">SKIP these &mdash; the tree does not care</th></tr></thead>
+<tbody>
+<tr>
+<td class="l"><b>Group aggregates and counts.</b> <code>df.groupby(key)[col].transform("mean"/"count"/"std"/"max")</code>
+&mdash; "this customer's average basket", "how many transactions this id has". <code>transform</code>, not
+<code>agg</code>, so the result aligns back to every row (§22.1.5).</td>
+<td class="l"><b>Scaling of any kind.</b> <code>StandardScaler</code>, min&ndash;max, log, Box&ndash;Cox: every
+monotone map leaves every split &mdash; hence the fitted model &mdash; identical (§22.2.9). Scale for §4's
+gradient descent, §8's kNN and §17's SVM; never for a tree.</td>
+</tr>
+<tr>
+<td class="l"><b>Ratios and differences.</b> <code>amount/limit</code>, <code>price/sqft</code>,
+<code>spend - group_mean</code>. A single split cannot represent $x_1/x_2 &gt; c$; it needs a deep staircase to
+approximate it. One column replaces that staircase.</td>
+<td class="l"><b>One-hot for high cardinality.</b> A 5&nbsp;000-level id becomes 5&nbsp;000 near-empty binary
+columns, each too sparse to clear <code>min_child_weight</code>. Use native categoricals, frequency or target
+encoding instead (§22.2.10, §13.12).</td>
+</tr>
+<tr>
+<td class="l"><b>Encodings for high-cardinality nominals.</b> Frequency/count encoding (one line, no leakage
+risk) and out-of-fold target encoding (compute the target mean on the <em>other</em> folds only) &mdash; the
+full menu, with the leakage traps, is §22.2.10.</td>
+<td class="l"><b>Imputation, when native routing suffices.</b> Leave <code>NaN</code> in place: each node
+learns its own default direction (§13.10), which is strictly more expressive than pinning missingness to one
+point of the axis. Impute only when missingness is genuinely uninformative.</td>
+</tr>
+<tr>
+<td class="l"><b>Datetime, cyclical and lag features.</b> A raw timestamp is a monotone counter the tree can
+only memorise; extract dayofweek/month/hour, encode angles with sin&ndash;cos so December sits next to January,
+and build lags/rolling windows and "days since last event" (§22.3, §22.4).</td>
+<td class="l"><b>Interaction terms, mostly.</b> A depth-$d$ tree already represents $d$-way interactions of the
+columns it has, so explicit <code>x1*x2</code> rarely helps a depth-6 model. The exception is real: with
+shallow trees (depth 2&ndash;3), or with a ratio the staircase approximates badly, an explicit column still
+earns its place.</td>
+</tr>
+<tr>
+<td class="l"><b>Missingness as signal.</b> <code>df[c].isna().astype(int)</code> when the <em>fact</em> of a
+blank is predictive (MNAR &mdash; an unfilled income field) and you still want to impute the value itself.</td>
+<td class="l"><b>Deduplicating what the model would learn anyway.</b> Dropping a column because it correlates
+with another mostly reshuffles importance between the twins (see the gotchas below) without changing the fit.</td>
+</tr>
+</tbody></table></div>
+
+<details class="code"><summary>Code — four engineered features on a literal frame, straight into XGBClassifier</summary>
+<pre><code>import pandas as pd
+from xgboost import XGBClassifier
+
+tx = pd.DataFrame({
+    "cust":   ["a", "a", "a", "a", "b", "b", "b", "c", "c", "c", "c", "d"],
+    "city":   ["kol", "kol", "mum", "kol", "mum", "del", "mum", "del",
+               "kol", "mum", "kol", "del"],
+    "amount": [120., 80., 300., 60., 45., 60., 900., 500., 20., 90., 40., 700.],
+    "limit":  [1000., 1000., 2000., 1000., 500., 500., 1000., 4000.,
+               300., 300., 300., 1000.],
+    "ts":     ["2026-01-03", "2026-02-11", "2026-02-28", "2026-03-05",
+               "2026-01-19", "2026-03-02", "2026-03-20", "2026-03-15",
+               "2026-01-05", "2026-03-30", "2026-02-02", "2026-03-28"],
+    "flag":   [0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0],   # "unusual FOR THIS customer"
+})
+tx["ts"] = pd.to_datetime(tx["ts"])      # never engineer dates off a string column</code></pre>
+<pre><code>g = tx.groupby("cust")["amount"]
+
+# 1. group COUNT  — how much history this customer has
+tx["cust_txn_count"]   = g.transform("count")
+# 2. group MEAN, as a RATIO — "big for this customer", which no single split can express
+tx["amt_vs_cust_mean"] = tx["amount"] / g.transform("mean")
+# 3. a plain ratio of two columns
+tx["utilisation"]      = tx["amount"] / tx["limit"]
+# 4. recency: a DURATION, not a timestamp (a raw date is just a counter to a tree)
+tx["days_since"]       = (tx["ts"].max() - tx["ts"]).dt.days
+# bonus: frequency encoding for a nominal — one column instead of one-hot
+tx["city_freq"]        = tx["city"].map(tx["city"].value_counts(normalize=True))
+
+X = tx[["amount", "limit", "cust_txn_count", "amt_vs_cust_mean",
+        "utilisation", "days_since", "city_freq"]]      # note: no scaling, no imputation
+fe_clf = XGBClassifier(n_estimators=60, max_depth=2, learning_rate=0.3,
+                       tree_method="hist", eval_metric="logloss")
+fe_clf.fit(X, tx["flag"])
+dict(zip(X.columns, fe_clf.feature_importances_.round(3)))</code></pre>
+<p class="wnote">Interview line: a tree splits <em>one column at a time</em>, so engineering for GBDTs means
+manufacturing the axes it cannot manufacture &mdash; group summaries, ratios, differences, durations &mdash;
+and then doing nothing else. Say the two halves together: <em>build</em> <code>groupby(...).transform(...)</code>
+aggregates, ratios, datetime durations and frequency/OOF-target encodings; <em>skip</em> scaling, wide one-hot
+and imputation. Pitfall: any statistic computed from the target (target encoding, group means of $y$) must be
+computed out-of-fold, or you have leaked the label into a column and your CV score becomes fiction.</p>
+</details>
+
 <h4>Feature selection that respects the model</h4>
+
+<p>Once the columns exist, the cut. Back on the 600-row pipeline fitted at the top of this subsection,
+XGBoost's own importances double as an <em>embedded</em> selector (§22.2.11's third family): fit once, keep
+what the model used, refit. <code>SelectFromModel</code> wraps that in one call &mdash; with the caveat that
+it inherits every bias of whichever lens you fed it.</p>
 
 <pre><code>from sklearn.feature_selection import SelectFromModel
 sel = SelectFromModel(clf, threshold="median", prefit=True)   # keeps above-median importance
