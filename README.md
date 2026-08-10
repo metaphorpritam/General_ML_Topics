@@ -38,5 +38,5 @@ docs/
 
 ## Question Bank
 
-Practice companion: **[the Question Bank](https://metaphorpritam.github.io/General_ML_Topics/test_set.html)** — 128 MCQs (instant feedback, worked explanations, score tracking) + 50 coding problems checked live in your browser via PyScript, with three progressive hints each. Over half the set drills probability, Bayes' theorem and statistics; includes business-application bands (credit risk, A/B testing, churn/CLV).
+Practice companion: **[the Question Bank](https://metaphorpritam.github.io/General_ML_Topics/test_set.html)** â€” 128 MCQs (instant feedback, worked explanations, score tracking) + 50 coding problems checked live in your browser via PyScript, with three progressive hints each. Over half the set drills probability, Bayes' theorem and statistics; includes business-application bands (credit risk, A/B testing, churn/CLV).
 
