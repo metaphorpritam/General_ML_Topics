@@ -3557,6 +3557,95 @@ RocCurveDisplay.from_predictions(y_test, scores)   # or .from_estimator(clf, X_t
 <p class="wnote">roc_auc_score and roc_curve both need continuous scores (predict_proba or decision_function), not hard labels — passing .predict() output silently collapses the full threshold sweep of §5.3's table into a degenerate 3-point curve.</p>
 </details>
 
+<h4>ROC-AUC vs PR-AUC — which curve for which problem</h4>
+
+<p>The interpretation above closes on a recommendation — prefer Precision–Recall when the positive class is rare — that is worth making precise, because it is the most common evaluation question asked of an imbalanced problem. Both curves sweep the <em>same</em> threshold over the <em>same</em> scores. They differ only in what is plotted against recall, and that one difference decides everything.</p>
+
+<div class="defn">
+<p>The <em class="key">Precision–Recall curve</em> plots $P(t)$ against $R(t)$ as $t$ sweeps down — the last two columns of §5.3's sweep table, read as a curve instead of a list. Its one-number summary is <strong>average precision</strong> (AP):</p>
+$$\text{AP} = \sum_{k} \left(R_k - R_{k-1}\right) P_k$$
+<p>that is, precision averaged over the recall it buys, weighted by how much new recall each threshold step delivers. "PR-AUC" and "average precision" are used interchangeably in interviews; AP is the non-interpolating version, and it is what <code>average_precision_score</code> returns.</p>
+</div>
+
+<div class="note">
+<p><strong>Why ROC cannot see prevalence, and why PR must.</strong> Look at where each denominator comes from. $\text{TPR}=\dfrac{TP}{TP+FN}$ is computed <em>entirely inside the positive class</em>; $\text{FPR}=\dfrac{FP}{FP+TN}$ <em>entirely inside the negative class</em>. Neither ever divides a count from one class by a count involving the other. So if the negative class is inflated by a factor $c>1$ while its score distribution is left alone, every negative count scales by $c$ in both the numerator and the denominator of FPR, and the positive counts are untouched — <strong>every point of the ROC curve, and therefore AUC, is exactly invariant</strong>. Precision is the one metric that breaks this wall: $P=\dfrac{TP}{TP+FP}$ puts a positive-class count over a <em>mixed</em> total, so inflation sends $P \to \dfrac{TP}{TP+c\,FP}$. It falls, and it falls hardest exactly where $FP$ already dominates $TP$ — which, when positives are rare, is everywhere except the extreme top of the ranking.</p>
+</div>
+
+<p>The two baselines inherit that asymmetry, and this is the part candidates most often get wrong:</p>
+
+<div class="math-steps">
+<div class="step"><span>random ranker, ROC: $\text{TPR}(t)=\text{FPR}(t)$ at every $t$ $\;\Rightarrow\;$ the diagonal, $\text{AUC}=0.5$</span><span class="why">a <em>fixed</em> reference — 0.5 means "useless" on any dataset</span></div>
+<div class="step"><span>random ranker, PR: $P(t)=\pi$ at every $t$, with prevalence $\pi=\dfrac{N_+}{N_++N_-}$ $\;\Rightarrow\;$ a horizontal line at $\pi$, $\text{AP}=\pi$</span><span class="why">a <em>moving</em> reference — the floor drops as positives get rarer</span></div>
+</div>
+
+<p>So an AP is uninterpretable until someone tells you the prevalence: $\text{AP}=0.13$ is far worse than a coin flip at $\pi=0.5$ and thirteen times the floor at $\pi=0.01$. Always quote AP <em>next to</em> $\pi$. An AUC needs no such companion — which is its convenience and, below, its danger.</p>
+
+<div class="ex">
+<p><strong>Worked example — one ranker, two prevalences.</strong> Take a single fixed scoring model on a $10$-bin score grid $s\in\{0.1,\dots,1.0\}$: $100$ positives piled toward the high bins, $100$ negatives piled toward the low bins. Now build a $99{:}1$ version by replicating <em>every</em> negative $99$ times, giving $9900$ negatives. Replication cannot change $P(s\mid y=0)$ — the negatives' score distribution is identical, only more numerous — so the ranker's discriminative ability is <em>unchanged by construction</em>. Everything below follows from that one move. <!-- prov: s05_evaluation.json:prevalence_roc_vs_pr.pos_counts,prevalence_roc_vs_pr.neg_shape,prevalence_roc_vs_pr.replication --></p>
+<div class="scrollx">
+<table>
+<tr><th>quantity</th><th class="num">balanced ($\pi=0.5$)</th><th class="num">imbalanced ($\pi=0.01$)</th></tr>
+<tr><td>rows $N$ ($N_+$ / $N_-$)</td><td class="num">200 (100 / 100)</td><td class="num">10000 (100 / 9900)</td></tr>
+<tr><td><b>ROC-AUC</b></td><td class="num"><b>0.9403</b></td><td class="num"><b>0.9403</b></td></tr>
+<tr><td>ROC baseline (chance)</td><td class="num">0.500</td><td class="num">0.500</td></tr>
+<tr><td><b>average precision</b></td><td class="num"><b>0.9146</b></td><td class="num"><b>0.1306</b></td></tr>
+<tr><td>PR baseline ($=\pi$)</td><td class="num">0.500</td><td class="num">0.010</td></tr>
+<tr><td>accuracy of "predict every row negative"</td><td class="num">0.500</td><td class="num">0.990</td></tr>
+<tr><td>best accuracy over <em>all</em> thresholds</td><td class="num">0.875</td><td class="num">0.990</td></tr>
+<tr><td>at $t=0.9$: recall</td><td class="num">0.45</td><td class="num">0.45</td></tr>
+<tr><td>at $t=0.9$: FPR</td><td class="num">0.02</td><td class="num">0.02</td></tr>
+<tr><td>at $t=0.9$: <b>precision</b></td><td class="num"><b>0.9574</b></td><td class="num"><b>0.1852</b></td></tr>
+</table>
+</div>
+<!-- prov: s05_evaluation.json:prevalence_roc_vs_pr.balanced,prevalence_roc_vs_pr.imbalanced -->
+<!-- prov: s05_evaluation.json:prevalence_roc_vs_pr.roc_auc_unchanged,prevalence_roc_vs_pr.roc_operating_point_unchanged -->
+<p>Read the last three rows together, because they are the whole argument in miniature. The chosen operating point $t=0.9$ produces the <em>identical</em> ROC coordinate $(\text{FPR},\text{TPR})=(0.02,\,0.45)$ in both columns — literally the same dot on the same curve. <!-- prov: s05_evaluation.json:prevalence_roc_vs_pr.balanced.op_fpr,prevalence_roc_vs_pr.imbalanced.op_fpr --> Yet the precision at that dot falls from $0.9574$ to $0.1852$, a drop of $0.7722$ <!-- prov: s05_evaluation.json:prevalence_roc_vs_pr.op_precision_drop -->, because a $2\%$ false-positive rate costs $2$ false alarms out of $100$ negatives but $198$ out of $9900$. At that operating point the model catches $45$ true positives and raises $198$ false alarms <!-- prov: s05_evaluation.json:prevalence_roc_vs_pr.imbalanced.sweep --> — $4.4$ false alarms per catch <!-- prov: s05_evaluation.json:prevalence_roc_vs_pr.op_fp_per_tp_imbalanced -->, i.e. a review queue in which fewer than one item in five is genuine. ROC saw none of that, and could not have.</p>
+</div>
+
+<div class="warn">
+<p><strong>Where accuracy and ROC-AUC flatter the same model at once.</strong> In the $99{:}1$ column, the two headline numbers a candidate usually reports are $\text{accuracy}=0.990$ and $\text{AUC}=0.9403$. Both are true; both are useless here. Accuracy is useless because $0.990$ is <em>also</em> the score of §5.1's degenerate "predict every row negative" classifier — and worse, it is the <em>maximum</em> accuracy attainable at any threshold on this data <!-- prov: s05_evaluation.json:prevalence_roc_vs_pr.imbalanced.best_threshold_accuracy,prevalence_roc_vs_pr.imbalanced.accuracy_all_negative -->, so the accuracy-optimal decision rule is to switch the model off. AUC is useless <em>not because it is wrong</em> — the ranking genuinely is that good, and $0.9403$ is the honest measure of it — but because prevalence-invariance means it is a statement about the score distributions only, and says nothing about how much of the flagged queue is real. Average precision is the number that prices the same ranking at the prevalence you actually face: $0.1306$ against a floor of $0.010$ <!-- prov: s05_evaluation.json:prevalence_roc_vs_pr.imbalanced.average_precision,prevalence_roc_vs_pr.imbalanced.pr_baseline --> — genuine skill, $13.06\times$ the floor <!-- prov: s05_evaluation.json:prevalence_roc_vs_pr.ap_lift_over_baseline_imbalanced -->, and nowhere near shippable as a standalone decision.</p>
+</div>
+
+<div class="summary">
+<p><strong>Interpretation, and the rule of thumb.</strong> The two curves answer two different questions, and neither is "better".</p>
+<ul>
+<li><strong>ROC-AUC</strong> answers <em>"how well does this model rank a positive above a negative?"</em> — a property of the model, deliberately stripped of the deployment context. Use it when classes are roughly balanced, when you are comparing rankers across datasets whose prevalence differs, or when you will re-tune the threshold anyway and want a prevalence-free scoreboard.</li>
+<li><strong>PR-AUC / average precision</strong> answers <em>"if I act on the top of this ranking, what fraction of my actions are wasted?"</em> — a property of the model <em>at this prevalence</em>. Use it for rare-positive detection (fraud, disease screening, defect detection, churn on a loyal base) where the negatives are so numerous that a fine-looking FPR still buries the positives.</li>
+<li>Because both derive from the same threshold sweep, they never contradict each other about <em>ranking</em>; they diverge only about <em>consequences</em>. When they diverge, PR is the one describing what the reviewer downstream will experience.</li>
+</ul>
+<p>The single sentence to say out loud: <em>"AUC is invariant to prevalence, average precision is not — so on a $99{:}1$ problem I report AP against the $\pi$ baseline, and I quote AUC only as evidence that the ranking itself is sound."</em> The follow-up question is always what to do about it: threshold moving, class weights, resampling and the cost-sensitive framing are in §14, and §5.5's decision flowchart puts this ROC-vs-PR branch on the path with the rest.</p>
+</div>
+
+<details class="code"><summary>Code — ROC-AUC vs average precision on 99:1 data (sklearn)</summary>
+<pre><code>import numpy as np
+from sklearn.datasets import make_classification
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import (accuracy_score, roc_auc_score, average_precision_score,
+                             RocCurveDisplay, PrecisionRecallDisplay)
+
+X, y = make_classification(n_samples=20000, n_features=20, n_informative=4,
+                           weights=[0.99], flip_y=0.0, random_state=0)   # weights[0] = share of the NEGATIVE class
+X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.3, random_state=0, stratify=y)
+
+clf = LogisticRegression(max_iter=2000).fit(X_tr, y_tr)
+s = clf.predict_proba(X_te)[:, 1]
+
+# ---- verdict 1: the two prevalence-blind numbers, both flattering ----
+accuracy_score(y_te, clf.predict(X_te))   # ~0.99 -- but so is (1 - y_te.mean()), the do-nothing rule
+roc_auc_score(y_te, s)                    # high, and provably unchanged if you duplicate every negative
+
+# ---- verdict 2: the number that prices the SAME ranking at THIS prevalence ----
+average_precision_score(y_te, s)          # collapses toward the baseline on the next line
+y_te.mean()                               # PR baseline = prevalence; the ROC baseline is always 0.5
+
+RocCurveDisplay.from_predictions(y_te, s, plot_chance_level=True)          # hugs the top-left: looks solved
+PrecisionRecallDisplay.from_predictions(y_te, s, plot_chance_level=True)   # same scores, precision falls off a cliff
+# plot_chance_level draws the RIGHT baseline for each: the diagonal for ROC, y = prevalence for PR
+</code></pre>
+<p class="wnote">One score vector, two Displays, opposite verdicts — that divergence is itself the diagnosis, so run both and never report AUC alone on a rare-positive problem; note also that average_precision_score is threshold-free like roc_auc_score, so both take predict_proba scores, never .predict() labels.</p>
+</details>
+
 <h3 id="s05-4">5.4 &nbsp; Averaging across classes: macro, weighted, micro F1</h3>
 
 <p>With $K>2$ classes there is no single confusion matrix cell to read $P$/$R$ off — each class $c$ gets its own $P_c, R_c, F1_c$ by treating "class $c$" as positive and everything else as negative. gives three ways to collapse the $K$ per-class $F1_c$ into one number:</p>
@@ -16833,6 +16922,762 @@ show this is not MCAR — the null rate runs from 0.57 to 0.04 across age bands.
 it is MAR or MNAR, because that depends on the values I do not have; I have assumed MAR, imputed within
 age band, kept the indicator, and here is the sensitivity of the result to that assumption."</p>
 </div>
+
+<p>The box above says what to <em>believe</em>; this one says what to <b>type</b>. Read it as a
+continuation of the diagnostics, not a separate topic — the two diagnostics you just ran are what
+selects the row. A <b>flat</b> null rate across every observed group, with the indicator uncorrelated
+with everything you can see, puts you on the MCAR row. A <b>steep</b> gradient in the null rate against
+an observed column puts you on the MAR row and <em>names the column to condition on</em>. Nothing puts
+you on the MNAR row except domain knowledge about how the data was collected — which is why that row
+contains no imputer at all.</p>
+
+<div class="scrollx">
+<table>
+<caption>Missingness mechanism &rarr; imputation strategy, and the call that implements it</caption>
+<thead><tr><th>Mechanism</th><th>What the §22.2.8 diagnostics show</th><th>Defensible strategy</th><th>The call</th><th>What it still costs you</th></tr></thead>
+<tbody>
+<tr><td><b>MCAR</b></td>
+<td>null rate flat across every observed group; indicator correlates with nothing</td>
+<td><b>Listwise deletion is unbiased</b> — and wasteful. Mean/median imputation is also unbiased
+<em>for the point estimate</em>, so on a test either is defensible; say which and why</td>
+<td><code>df.dropna(subset=[c])</code> or
+<code>SimpleImputer(strategy="median", add_indicator=True)</code></td>
+<td>Deletion throws away every other column of those rows — pure loss of power. Imputation keeps the
+rows but <b>shrinks the variance</b>: filling a large fraction of a column with one constant collapses
+its σ (measured above), so every correlation, standard error and confidence interval computed
+afterwards is too narrow. The mean survives; nothing built on the spread does</td></tr>
+<tr><td><b>MAR</b></td>
+<td>null rate varies sharply with an observed column; indicator correlates with that column
+(and not, in principle, with anything unobserved you care about)</td>
+<td><b>Impute conditioning on the observed predictors</b> that drive the missingness — this is the only
+row where a better imputer genuinely buys unbiasedness</td>
+<td>group-wise median via
+<code>groupby(driver)[c].transform("median")</code>; <code>KNNImputer</code> (neighbours in
+<em>all</em> observed columns); <code>IterativeImputer</code> (regress the gappy column on the others, round-robin)
+— all with <code>add_indicator=True</code></td>
+<td>Only as good as the columns you condition on: a conditional imputer that omits the actual driver
+degrades to the global mean and is biased exactly as deletion is. The variance shrinkage of the MCAR
+row still applies (single imputation always understates uncertainty; multiple imputation is the
+statistician's fix and is out of scope for a 90-minute test)</td></tr>
+<tr><td><b>MNAR</b></td>
+<td><b>identical to MAR.</b> No diagnostic in the frame separates the two — the evidence lives in the
+values you do not have</td>
+<td><b>No statistical fix exists from the data alone.</b> Options are all extra-data: a domain/selection
+model of <em>why</em> the value is absent; censoring-aware methods when the mechanism is a limit
+(survival models for "still active", Tobit/censored regression for "below the detection threshold",
+truncation-aware likelihoods); and a <b>sensitivity analysis</b> across a range of assumed values. The
+missing-indicator is often the single most honest feature in the table — it encodes the fact you
+actually observed ("this was refused") rather than a number you invented</td>
+<td><code>df[c+"_was_na"]</code> as a kept feature; impute at the observed median, then again at the
+75th/90th percentile, and report how far the conclusion moves</td>
+<td>The answer is only as good as the declared assumption, so a <em>point</em> estimate is not a
+legitimate output — a range is. And note the trap: a rich imputer here is actively worse than a crude
+one, because <code>KNNImputer</code>/<code>IterativeImputer</code> learn from the observed rows and the
+observed rows are precisely the non-representative ones (the residual bias measured above)</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="warn"><b>Four rules that hold on every row of that table.</b>
+<ul>
+<li><b>Never impute the target.</b> Drop those rows — <code>df.dropna(subset=["y"])</code>, row 8 of
+§22.6.4. Imputing <em>y</em> manufactures labels and then scores you against them: the model learns to
+reproduce your fill rule and the metric rewards it for doing so. If <em>y</em> is missing
+non-randomly, that is a sample-selection problem to state out loud, not an imputation problem to
+solve.</li>
+<li><b>Fit every imputer inside the CV pipeline.</b> A median, a group median, a KNN neighbourhood and
+an <code>IterativeImputer</code>'s regression coefficients are all <em>learned statistics</em> and all
+leak identically (§22.2.7, §21.7 — and the golden-rule box opening §22.2 puts a number on the gap).
+<code>cross_val_score(pipe, ...)</code> with the imputer as a pipeline step refits it per fold;
+<code>df.fillna(df.median())</code> before the split does not.</li>
+<li><b>Turn the indicator on by default</b> — <code>add_indicator=True</code>, or the
+<code>_was_na</code> column of §22.2.6, created <em>before</em> the fill. It costs one binary column
+and converts an untestable assumption into a feature the model can price. Under MAR it recovers
+residual effects the conditional fill missed; under MNAR it is frequently the strongest predictor in
+the frame.</li>
+<li><b>For trees and boosting, consider not imputing at all.</b> xgboost, LightGBM and
+<code>HistGradientBoosting</code> route <code>NaN</code> to a <em>learned default direction chosen per
+split</em> (§13.10, §13.13) — strictly more expressive than one global fill plus one indicator,
+because the direction can differ at every node. Pre-filling destroys that information and is a common
+unforced error; leave the holes in and let the booster decide, then measure whether an imputed variant
+beats it.</li>
+</ul>
+</div>
+
+<details class="code"><summary>Code — the three sklearn imputers, plus the pandas MAR pattern (sklearn / pandas)</summary>
+<pre><code>from sklearn.experimental import enable_iterative_imputer   # MUST come first -- IterativeImputer is
+from sklearn.impute import SimpleImputer, KNNImputer, IterativeImputer   # still experimental in sklearn
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.ensemble import RandomForestRegressor
+
+num_cols = ["age", "income", "score"]
+cat_cols = ["city", "segment"]
+
+# --- MCAR / "just get it done": constant statistic + the indicator ---
+mcar_num = Pipeline([("imp", SimpleImputer(strategy="median", add_indicator=True))])
+
+# --- MAR, option A: neighbours in the other observed columns. SCALE FIRST -- it is k-NN (Sec 8),
+#     so an unscaled income column decides every neighbour on its own.
+mar_knn = Pipeline([("sc",  StandardScaler()),
+                    ("imp", KNNImputer(n_neighbors=5, add_indicator=True))])
+
+# --- MAR, option B: regress each column on the others, round-robin until it settles ---
+mar_iter = Pipeline([("imp", IterativeImputer(estimator=RandomForestRegressor(n_estimators=50),
+                                              max_iter=10, random_state=0,
+                                              add_indicator=True))])
+
+pre = ColumnTransformer([
+    ("num", mar_knn, num_cols),
+    ("cat", Pipeline([("imp", SimpleImputer(strategy="most_frequent", add_indicator=True)),
+                      ("oh",  OneHotEncoder(handle_unknown="ignore", sparse_output=False))]), cat_cols),
+])
+pipe = Pipeline([("pre", pre), ("model", RandomForestRegressor(random_state=0))])
+pipe.fit(X_tr, y_tr)        # every imputer above is fitted on THESE rows only, and refitted per CV fold
+
+# --- The pandas MAR pattern, when you are not in a Pipeline (Q2-style cleaning) ---
+# The conditioning column is the one the diagnostics flagged -- here segment drives income's nulls.
+med_by_seg = X_tr.groupby("segment")["income"].median()   # LEARNED ON TRAIN
+global_med = X_tr["income"].median()                      # fallback for a group that is entirely null
+
+def fill_income(d):                                       # applied to train, val and test identically
+    return d["income"].fillna(d["segment"].map(med_by_seg)).fillna(global_med)
+
+for d in (X_tr, X_va, X_te):
+    d["income_was_na"] = d["income"].isna().astype("int8") # indicator BEFORE the fill
+    d["income"] = fill_income(d)
+
+# ANTI-PATTERN, for contrast: the one-liner everyone reaches for --
+# X_all.groupby("segment")["income"].transform(lambda s: s.fillna(s.median()))
+# recomputes the median over train+val+test together, so val/test rows help decide their own fill.
+</code></pre>
+<p class="wnote">The <code>enable_iterative_imputer</code> import is the line people forget and then
+spend two minutes debugging an ImportError on the clock; the second thing to carry away is that
+<code>groupby().transform()</code> is safe only on the training frame — across a split you must freeze
+the medians into a Series and <code>.map()</code> them, exactly as above.</p>
+</details>
+
+<h4>22.2.9 &nbsp; Feature scaling done right</h4>
+
+<p>§22.2.7 put a <code>StandardScaler</code> into the numeric branch of the
+<code>ColumnTransformer</code> without arguing for it, and §22.2.8's <code>KNNImputer</code> quietly
+depended on it. This is the argument, because "do you scale, and with what?" is asked in almost every
+interview and the wrong answer is <em>"always, it's good practice"</em>. Scaling is not hygiene. It is
+a fix for one specific problem: <b>an algorithm that compares or sums across columns treats a column
+measured in rupees as more important than a column measured in years, purely because the numbers are
+bigger.</b> Where no such comparison happens, scaling does nothing.</p>
+
+<div class="scrollx">
+<table>
+<caption>The three scalers: what each subtracts, what each divides by, and what breaks it</caption>
+<thead><tr><th>Scaler</th><th>Formula</th><th>Output</th><th>Reach for it when</th><th>Breaks when</th></tr></thead>
+<tbody>
+<tr><td><b>Normalisation</b><br><code>MinMaxScaler</code></td>
+<td>$x' = \dfrac{x - x_{\min}}{x_{\max} - x_{\min}}$</td>
+<td>bounded to $[0,1]$ (or any range you ask for)</td>
+<td>you need a <em>bounded</em> input — pixel intensities, a sigmoid-saturating input layer, a distance
+that assumes a unit cube — or the column is plainly non-Gaussian and you only want it commensurate</td>
+<td>a single outlier: <code>min</code> and <code>max</code> are the two least robust statistics there
+are, so one 9999 sentinel (§22.2.5) squashes every real value into a sliver near 0. Test values
+outside the training range also fall outside $[0,1]$</td></tr>
+<tr><td><b>Standardisation</b><br><code>StandardScaler</code></td>
+<td>$x' = \dfrac{x - \mu}{\sigma}$</td>
+<td>mean 0, sd 1, <em>unbounded</em></td>
+<td><b>the default.</b> Anything gradient-descent-trained, anything penalised, anything distance- or
+variance-based. This is the one to type if you have five seconds to decide</td>
+<td>heavy tails still dominate — $\mu$ and $\sigma$ are themselves outlier-sensitive, just less
+catastrophically than min/max</td></tr>
+<tr><td><b>Robust scaling</b><br><code>RobustScaler</code></td>
+<td>$x' = \dfrac{x - \text{median}}{\text{IQR}}$</td>
+<td>median 0, IQR 1, unbounded</td>
+<td>§22.2.5's outlier check found extremes that are <b>real and worth keeping</b> (income, claim size,
+latency) — the median and IQR barely move when the tail does</td>
+<td>nothing much; it is simply less familiar to graders, so name it and say why</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="note"><b>None of the three changes the <em>shape</em> of a distribution.</b> They are all
+affine maps: subtract something, divide by something. A skewed column is exactly as skewed after
+<code>StandardScaler</code> as before, and a bimodal one is still bimodal. If the shape is the problem
+— and §22.2.5's skew check is where you find out — the tool is a <code>log1p</code>,
+<code>PowerTransformer</code> (Box–Cox / Yeo–Johnson) or <code>QuantileTransformer</code>, which are a
+different decision made for a different reason. Saying "I standardised, so the feature is now normal"
+is a straightforward error and graders listen for it.</div>
+
+<div class="scrollx">
+<table>
+<caption>Which models need scaling — the table to answer from, not to derive on the spot</caption>
+<thead><tr><th>Verdict</th><th>Models</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td><b>Scale — mandatory</b></td>
+<td>k-NN and <code>KNNImputer</code>; SVM and every kernel; PCA; k-means and fuzzy c-means; DBSCAN and GMM</td>
+<td>every one of them computes a <b>distance, inner product or variance across columns</b>. The
+column with the largest raw spread silently becomes the only column that matters — PCA will point its
+first component straight down the rupee axis regardless of what that axis means</td></tr>
+<tr><td><b>Scale — mandatory</b></td>
+<td>neural networks, and <em>anything</em> fitted by gradient
+descent including <code>SGDClassifier</code>/<code>SGDRegressor</code>
+and <code>LogisticRegression</code>'s iterative solvers</td>
+<td>unequal column scales make the loss surface an elongated ravine, so one learning rate cannot suit
+both directions — §4's condition-number argument. Symptom on the day: a convergence warning, or a
+model that needs 10× the iterations (§22.5.8 hits exactly this)</td></tr>
+<tr><td><b>Scale — mandatory</b></td>
+<td>linear and logistic regression <b>with regularisation</b>: ridge, lasso, elastic net</td>
+<td>the penalty $\lambda\sum_j \beta_j^2$ (or $\sum_j|\beta_j|$) is a sum over coefficients, and a
+coefficient's size is a function of its column's units. Unscaled, the penalty punishes whichever
+feature happens to be measured in small units — lasso will drop it not because it is uninformative but
+because it is expressed in kilometres rather than metres</td></tr>
+<tr><td><b>Indifferent</b></td>
+<td>decision trees, random forests,
+AdaBoost on stumps, gradient boosting, XGBoost, LightGBM,
+<code>HistGradientBoosting</code></td>
+<td>a tree splits on <code>column &lt;= threshold</code>, and <b>any monotone map moves the threshold
+with the data and leaves the split — and therefore the fitted model — unchanged</b>. That is §13.13's
+rule verbatim; scaling, log-transforming or rank-transforming a feature before a booster is wasted
+work. §22.4.2 measures it on this kit's own data and the RMSE moves by zero</td></tr>
+<tr><td><b>Indifferent (with a caveat)</b></td>
+<td>plain OLS, Naive Bayes</td>
+<td>OLS <em>predictions</em> are scale-equivariant — rescale a column and its coefficient rescales
+inversely, exactly cancelling — so scaling changes nothing about fit. It still changes two things you
+may care about: the conditioning of $\mathbf{X}^\top\mathbf{X}$, and whether coefficients are
+comparable to each other when you read them as importances</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="summary"><b>The one-line answer.</b> <em>"Distance-based, variance-based, penalised and
+gradient-descent-trained models need scaling; tree-based models do not, because a split threshold moves
+with any monotone transform."</em> That single sentence covers the whole table, and it is why §22.5.2
+builds <b>two</b> preprocessors — a scaled one for the linear/SVM/KNN candidates and a lean one for
+the trees — rather than one compromise used everywhere.</div>
+
+<div class="warn"><b>The two traps, both of which cost marks.</b>
+<ul>
+<li><b>Fitting the scaler on the full frame = leakage.</b> <code>StandardScaler().fit_transform(X)</code>
+before the split computes $\mu$ and $\sigma$ from rows the model is about to be tested on, so the test
+rows have helped define their own centring. It is the identical mechanism to the leaked median in the
+golden-rule box opening §22.2 and to §21.7's feature selection: a learned statistic escaping the
+training set. The fix is not discipline, it is <b>structure</b> — put the scaler in a
+<code>Pipeline</code> and let <code>cross_val_score</code>/<code>GridSearchCV</code> refit it inside
+every fold. The effect is small enough to be invisible in your score and large enough to be wrong.</li>
+<li><b>Scaling things that should not be scaled.</b> (i) <b>One-hot dummies are already on a common
+0/1 scale</b>; standardising them replaces two readable levels with two arbitrary reals, destroys
+sparsity (a zero is no longer a zero, which matters for sparse solvers and for tree split counts), and
+makes coefficients harder to read — pass the categorical block through untouched, which is what the
+<code>ColumnTransformer</code> below does. (ii) <b>Do not scale the target</b> as a reflex: no model
+in the table requires it, and if you <em>do</em> transform <em>y</em> (a <code>log1p</code> for a
+skewed target, say) you must invert before scoring or the metric is computed in the wrong units —
+§22.5.6's <code>expm1</code> discipline, and one of the most common silent errors in a Q3.</li>
+</ul>
+</div>
+
+<details class="code"><summary>Code — scaling inside a Pipeline, and the leakage anti-pattern (sklearn)</summary>
+<pre><code>from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler, OneHotEncoder
+from sklearn.impute import SimpleImputer
+from sklearn.linear_model import Ridge
+from sklearn.model_selection import cross_val_score, train_test_split
+
+num_cols = ["age", "income", "score"]
+cat_cols = ["city", "segment"]
+
+# ---- RIGHT: the scaler is a pipeline STEP, so it is refitted on the training part of every fold ----
+pre = ColumnTransformer([
+    ("num", Pipeline([("imp", SimpleImputer(strategy="median")),
+                      ("sc",  StandardScaler())]), num_cols),   # swap in RobustScaler if outliers are real
+    ("cat", Pipeline([("imp", SimpleImputer(strategy="most_frequent")),
+                      ("oh",  OneHotEncoder(handle_unknown="ignore",
+                                            sparse_output=False))]), cat_cols),
+], remainder="drop")     # or "passthrough" to keep already-0/1 columns AS THEY ARE -- never scale a dummy
+
+pipe = Pipeline([("pre", pre), ("model", Ridge(alpha=1.0))])    # Ridge is penalised -&gt; scaling is REQUIRED
+X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.2, random_state=0)
+cross_val_score(pipe, X_tr, y_tr, cv=5, scoring="neg_root_mean_squared_error")
+pipe.fit(X_tr, y_tr).score(X_te, y_te)   # the scaler saw ONLY X_tr; X_te is transformed with X_tr's mu/sigma
+
+# ---- WRONG (leakage anti-pattern): fit_transform on the FULL frame, then split ----
+# X_all_scaled = StandardScaler().fit_transform(X)          # &lt;-- mu and sigma computed from test rows too
+# X_tr, X_te = train_test_split(X_all_scaled, test_size=0.2)  # the split is now decorative; CV score is optimistic
+
+# ---- Tree models: no scaler at all (Sec 13.13's rule) ----
+pre_tree = ColumnTransformer([
+    ("num", SimpleImputer(strategy="median"), num_cols),        # a split threshold moves with any monotone map
+    ("cat", Pipeline([("imp", SimpleImputer(strategy="most_frequent")),
+                      ("oh",  OneHotEncoder(handle_unknown="ignore",
+                                            sparse_output=False))]), cat_cols),
+])
+</code></pre>
+<p class="wnote">The whole lesson is structural, not arithmetic: a scaler written as a
+<code>Pipeline</code> step cannot leak, a scaler written as a standalone
+<code>fit_transform</code> on the full frame always can — so if you catch yourself calling
+<code>fit_transform</code> anywhere outside a pipeline, that is the bug.</p>
+</details>
+
+<h4>22.2.10 &nbsp; Encoding categoricals: the full menu</h4>
+
+<p>§22.2.7 typed <code>OneHotEncoder(handle_unknown="ignore")</code> into the categorical branch and
+§22.2.9 said never to scale what comes out of it. Neither argued for one-hot itself, and the argument
+is worth having, because the follow-up question — <em>"the column is customer id, five thousand
+distinct values, encode it"</em> — is where one-hot stops being an answer and most candidates run out
+of menu. A categorical column is a set of labels carrying no arithmetic; every encoder below is a
+different answer to <b>what numbers do I write there, and what will the model read into them.</b>
+Exactly two things can go wrong: you <b>invent an order that does not exist</b>, or you <b>produce
+more columns than you have rows</b>. Read the third and fourth columns of the table first — they are
+what an interviewer probes.</p>
+
+<div class="scrollx">
+<table>
+<caption>The encoder menu. $K$ = number of levels in the column</caption>
+<thead><tr><th>Encoder</th><th>Columns produced</th><th>Order invented?</th>
+<th>Unseen category at transform time</th><th>Best for</th></tr></thead>
+<tbody>
+<tr><td><b>One-hot</b><br><code>OneHotEncoder</code> / <code>pd.get_dummies</code></td>
+<td class="num">$K$</td>
+<td><b>No</b> — every level is equidistant from every other</td>
+<td><code>handle_unknown="ignore"</code> → an all-zeros row; the default <code>"error"</code> raises
+(§22.2.7). <code>get_dummies</code> has no notion of unseen at all — it silently emits a
+<em>different column set</em> per frame</td>
+<td>small $K$ (a dozen or so) and any model that needs a genuine vector space: linear, logistic, SVM, k-NN, neural nets</td></tr>
+<tr><td><b>Dummy</b> = one-hot with <code>drop="first"</code></td>
+<td class="num">$K-1$</td>
+<td><b>No</b> — but one level becomes the implicit baseline</td>
+<td>same all-zeros row — which is <em>also</em> the encoding of the dropped level. See the trap box</td>
+<td>unpenalised linear/logistic regression <b>with an intercept</b>, and any time you want to read
+coefficients as contrasts against a named reference level</td></tr>
+<tr><td><b>Ordinal</b><br><code>OrdinalEncoder(categories=[…])</code></td>
+<td class="num">1</td>
+<td><b>Yes — deliberately.</b> That is the entire point</td>
+<td><code>handle_unknown="use_encoded_value", unknown_value=-1</code></td>
+<td>columns with a <em>real</em> order: S &lt; M &lt; L &lt; XL,
+survey Likert scales, credit grades. Nothing else</td></tr>
+<tr><td><b>Label</b><br><code>LabelEncoder</code></td>
+<td class="num">1</td>
+<td><b>Yes — accidentally.</b> Codes are assigned in sorted order, so you get alphabetical rank</td>
+<td>raises; it has no <code>handle_unknown</code> parameter</td>
+<td>the <b>target</b> $y$, and only the target. It takes one array rather than a frame, which is the
+tell that it was never meant for features</td></tr>
+<tr><td><b>Binary</b><br>(base-2 codes; <code>category_encoders.BinaryEncoder</code>, or six lines of
+pandas below)</td>
+<td class="num">$\lceil \log_2 (K+1) \rceil$</td>
+<td><b>Partly.</b> No single column is read as a rank, but the bit columns are arbitrary contrasts —
+levels 7 and 8 share no bits, levels 8 and 9 share three</td>
+<td>reserve code 0 for "unseen" → an all-zeros row, free of charge</td>
+<td>high $K$ where one-hot is too wide to fit and you can tolerate the artefact — mostly trees, which
+can recombine bits across splits</td></tr>
+<tr><td><b>Frequency / count</b><br>(<code>groupby(…).size()</code> mapped back)</td>
+<td class="num">1</td>
+<td><b>Yes</b> — levels are ordered by how common they are</td>
+<td>maps to 0 — correctly read as "rarer than anything in training"</td>
+<td>high $K$, tree models. Costs nothing, never leaks if derived on train only, and popularity is
+often real signal in its own right</td></tr>
+<tr><td><b>Target / mean</b><br>(out-of-fold <code>KFold</code>, or sklearn's
+<code>TargetEncoder</code>)</td>
+<td class="num">1 (or $C-1$ for $C$ classes)</td>
+<td><b>Yes</b> — levels are ordered by their mean target</td>
+<td>maps to the global prior mean</td>
+<td>the high-cardinality workhorse: zip code, product id, merchant. Strongest encoding per column
+<em>and</em> the classic leak — see the sins box</td></tr>
+<tr><td><b>Hashing trick</b><br><code>FeatureHasher(n_features=…)</code></td>
+<td class="num">whatever you fix — <em>independent of $K$</em></td>
+<td><b>No</b> — collisions instead: two levels can land in the same column</td>
+<td>never raises; anything hashes, including values that did not exist when you fitted</td>
+<td>$K$ unbounded or unknown ahead of time — raw ids, URLs, user agents, streaming features. One-pass,
+stateless, no vocabulary to store</td></tr>
+<tr><td><b>Native categorical</b><br><code>.astype("category")</code> +
+<code>enable_categorical=True</code></td>
+<td class="num">0 new columns</td>
+<td><b>No</b> — the booster partitions the level set directly</td>
+<td>a level absent from training follows the default/missing branch</td>
+<td>XGBoost / LightGBM / CatBoost. If your model is a booster, this
+is usually the right answer and every row above it is wasted work</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="summary"><b>Interpretation — the table collapses to three questions.</b> (i) <b>Does the
+column have a real order?</b> If yes, ordinal, and spell the order out. (ii) <b>How big is $K$?</b>
+Small: one-hot, and stop thinking. Large: you are choosing what to spend — columns (binary, hashing),
+information (frequency), or care (target encoding, which buys the most signal and costs the most
+discipline). (iii) <b>What model comes next?</b> A booster wants native categorical or one integer
+column; a penalised linear model wants one-hot or target encoding on a scaled frame; k-NN and SVM want
+one-hot and nothing else, because everything they do is a distance and an integer code would put
+<code>delhi</code> three units from <code>mumbai</code> for no reason.</div>
+
+<div class="note"><b>The dummy-variable trap — why linear models drop a level, and why regularised and
+tree models must not.</b> Put an intercept column of ones beside all $K$ dummies and the dummies sum,
+row by row, to exactly that column: the design matrix is rank-deficient, $\mathbf{X}^\top\mathbf{X}$
+is singular, and the normal equations have infinitely many solutions —
+add $c$ to the intercept, subtract $c$ from every dummy coefficient, and the fit is unchanged. The
+coefficients are <em>not identified</em>. There are exactly two ways out.
+<ul>
+<li><b>Drop one level</b> (<code>drop="first"</code>, <code>drop_first=True</code>). The dropped level
+becomes the <b>reference</b>, the intercept becomes its mean response, and every surviving coefficient
+reads as a contrast against it — which is why this is the right choice whenever you intend to
+<em>interpret</em> the coefficients.</li>
+<li><b>Keep all $K$ and add a penalty.</b> Ridge solves
+$(\mathbf{X}^\top\mathbf{X} + \lambda\mathbf{I})^{-1}\mathbf{X}^\top\mathbf{y}$, and that matrix is
+invertible for any $\lambda &gt; 0$ even when $\mathbf{X}$ is rank-deficient. The solution becomes unique again and splits the shared effect
+symmetrically across the levels.</li>
+</ul>
+<b>Now the half nobody says out loud.</b> For a <em>regularised</em> model, dropping is actively
+harmful: the intercept is not penalised, so the reference level's effect hides inside it for free
+while every retained level pays the penalty. Which level you happened to drop — usually whichever
+sorted first — silently changes the fitted model. Keep all $K$ and let the penalty do its job. For a
+<em>tree</em> model there is no intercept, no normal equations and no collinearity problem at all;
+dropping a level merely makes it invisible, representable only as "all $K-1$ other dummies are zero",
+which costs the tree $K-1$ nested splits to express. Never drop for a tree.</div>
+
+<div class="warn"><b>The two encoding sins.</b>
+<ul>
+<li><b>Fitting the encoder on the full frame.</b> The <em>vocabulary</em> is a learned statistic like
+any other, so <code>OneHotEncoder().fit(pd.concat([train, test]))</code> lets test rows decide which
+levels exist and — with <code>min_frequency</code> — which are folded into "infrequent". The
+quieter pandas version is worse because it never raises: <code>pd.get_dummies</code> called
+separately on train and on test produces <em>different columns in a different order</em>, so column
+$j$ means <code>city_delhi</code> in one frame and <code>city_kochi</code> in the other and the model
+happily fits noise. Fix: the encoder is a <code>ColumnTransformer</code> step; if you must use
+<code>get_dummies</code>, follow it with
+<code>.reindex(columns=train_cols, fill_value=0)</code>, every time.</li>
+<li><b>Naive target encoding.</b>
+<code>df["city_te"] = df.groupby("city")["y"].transform("mean")</code> writes each row's <em>own</em>
+target into that row's own feature. For a level appearing once, the "feature" <b>is</b> the label; a
+tree finds it in a single split, CV comes back spectacular, and the test score collapses. This is the
+most dramatic leak in the whole section because it does not merely inflate a good model — it
+manufactures a signal that is not there, exactly as §21.7's noise experiment does with feature
+selection. Fix, all three parts: <b>out-of-fold</b> means so a row never sees its own target,
+<b>smoothing</b> towards the prior so a group of size one is shrunk to the global mean, and the whole
+thing <b>inside the pipeline</b> so it refits per fold.</li>
+</ul>
+</div>
+
+<details class="code"><summary>Code — one-hot vs dummy vs ordinal, inside one <code>ColumnTransformer</code> (sklearn / pandas)</summary>
+<pre><code>import pandas as pd
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder
+
+nominal = ["city"]                       # no order exists
+ordered = ["size"]                       # S &lt; M &lt; L &lt; XL -- a REAL order
+SIZE    = ["S", "M", "L", "XL"]          # spell it out; alphabetical would give L &lt; M &lt; S &lt; XL
+
+pre = ColumnTransformer([
+    # ONE-HOT: K columns, unseen level -&gt; all-zeros row, never raises.
+    # min_frequency folds rare levels into a single "infrequent_sklearn" column (learned on TRAIN).
+    ("oh",  OneHotEncoder(handle_unknown="ignore", sparse_output=False,
+                          min_frequency=10), nominal),
+    # DUMMY: K-1 columns. drop="first" ONLY for an unpenalised linear model with an intercept.
+    # sklearn ACCEPTS drop= together with handle_unknown="ignore" -- and then an unseen level and
+    # the dropped reference level both transform to the same all-zero row. Pick one, not both.
+    ("dum", OneHotEncoder(drop="first", sparse_output=False), nominal),
+    # ORDINAL: ONE column. categories= fixes the order; unknown_value keeps test alive.
+    ("ord", OrdinalEncoder(categories=[SIZE], handle_unknown="use_encoded_value",
+                           unknown_value=-1), ordered),
+])
+pre.fit(X_tr)                            # vocabulary learned on TRAIN only
+print(pre.get_feature_names_out())       # oh__city_*, dum__city_* (one level missing), ord__size
+print(pre.transform(X_te).shape)         # test reuses the train vocabulary -- shapes always match
+
+# ---- pandas equivalent, outside a pipeline: convenient, and one line from being a bug ----
+d_tr = pd.get_dummies(X_tr[nominal], drop_first=True, dtype="int8")
+d_te = pd.get_dummies(X_te[nominal], drop_first=True, dtype="int8") \
+         .reindex(columns=d_tr.columns, fill_value=0)   # WITHOUT this, test has other columns
+print(list(d_tr.columns) == list(d_te.columns))         # the assertion worth typing on the day
+</code></pre>
+<p class="wnote">The three encoders are three different <em>claims about the column</em>, not three
+styles: one-hot claims the levels are unordered, ordinal claims they are ordered and you know the
+order, dummy claims one level is a baseline you will compare against. State the claim out loud and the
+choice defends itself — and remember that <code>get_dummies</code> is the only one of them that has no
+<code>fit</code>, which is exactly why it needs the <code>reindex</code>.</p>
+</details>
+
+<details class="code"><summary>Code — binary and frequency encoding from scratch, train-derived (pandas / numpy)</summary>
+<pre><code>import numpy as np, pandas as pd
+
+# ================= BINARY ENCODING: K levels -&gt; ceil(log2(K+1)) columns =================
+levels   = pd.Index(X_tr["city"].unique())                      # vocabulary from TRAIN only
+code_map = pd.Series(np.arange(1, len(levels) + 1), index=levels)  # 1..K; 0 reserved for unseen
+n_bits   = int(np.ceil(np.log2(len(levels) + 1)))
+
+def binary_encode(s):
+    c    = s.map(code_map).fillna(0).astype("int64").to_numpy()  # unseen -&gt; 0 -&gt; all-zero row
+    bits = (c[:, None] &gt;&gt; np.arange(n_bits)) &amp; 1                 # bit-shift, low bit first
+    return pd.DataFrame(bits, index=s.index,
+                        columns=[f"city_b{i}" for i in range(n_bits)])
+
+tr_bin, te_bin = binary_encode(X_tr["city"]), binary_encode(X_te["city"])
+print(n_bits, "columns for", len(levels), "levels")   # one-hot would have needed len(levels)
+# numpy alternative for K &lt; 255:  np.unpackbits(c.astype(np.uint8)[:, None], axis=1)
+
+# ================= FREQUENCY / COUNT ENCODING: K levels -&gt; 1 column =================
+freq = X_tr.groupby("city").size() / len(X_tr)        # TRAIN proportions; .value_counts(normalize=True)
+cnt  = X_tr.groupby("city").size()                    #   is the same object. Drop the divisor for counts
+
+for d in (X_tr, X_te):                                # the SAME frozen map applied to both
+    d["city_freq"] = d["city"].map(freq).fillna(0.0)  # unseen -&gt; 0 = "rarer than anything in train"
+    d["city_cnt"]  = d["city"].map(cnt).fillna(0).astype("int32")
+
+print(tr_bin.head(3))
+print(X_tr[["city", "city_freq", "city_cnt"]].drop_duplicates().sort_values("city_freq"))
+</code></pre>
+<p class="wnote">Both encoders are one frozen <code>Series</code> plus a <code>.map()</code>, which is
+the shape every leakage-safe transform takes outside sklearn (§22.2.8's median pattern is the same
+object); the giveaway of a broken implementation is a <code>groupby</code> on the <em>concatenated</em>
+frame, because then the test rows have voted on their own encoding. Binary encoding is the answer to
+"what if one-hot is too wide?" that does not require the target — reach for it before target encoding
+when you have no budget for out-of-fold machinery.</p>
+</details>
+
+<details class="code"><summary>Code — leakage-safe out-of-fold target encoding, and the anti-pattern beside it (sklearn / pandas)</summary>
+<pre><code>import numpy as np, pandas as pd
+from sklearn.model_selection import KFold
+
+def fit_target_encoding(s, y, n_splits=5, m=20.0, seed=0):
+    """OOF mean-encode s with smoothing. Returns (train column, map for test, prior)."""
+    prior = y.mean()                                    # global mean: the fallback for everything
+    oof   = pd.Series(np.nan, index=s.index, dtype="float64")
+    for tr_idx, va_idx in KFold(n_splits, shuffle=True, random_state=seed).split(s):
+        st, yt = s.iloc[tr_idx], y.iloc[tr_idx]         # means come from the OTHER folds only
+        agg    = yt.groupby(st).agg(["mean", "count"])
+        sm     = (agg["mean"] * agg["count"] + prior * m) / (agg["count"] + m)   # shrink to prior
+        oof.iloc[va_idx] = s.iloc[va_idx].map(sm).fillna(prior).to_numpy()
+    agg  = y.groupby(s).agg(["mean", "count"])          # full-train map -- for TEST rows only
+    full = (agg["mean"] * agg["count"] + prior * m) / (agg["count"] + m)
+    return oof, full, prior
+
+X_tr["city_te"], full_map, prior = fit_target_encoding(X_tr["city"], y_tr)
+X_te["city_te"] = X_te["city"].map(full_map).fillna(prior)     # unseen level -&gt; the prior
+print(X_tr[["city", "city_te"]].head())
+
+# The smoothing weight m is the only knob: a level seen m times is pulled halfway to the prior,
+# so rare levels cannot shout. m -&gt; 0 recovers the raw group mean; m -&gt; inf recovers the prior.
+
+# ---- The library version, which does the cross-fitting internally (sklearn &gt;= 1.3) ----
+# from sklearn.preprocessing import TargetEncoder
+# TargetEncoder(cv=5, smooth="auto")   # put it in the ColumnTransformer and forget the loop above
+
+# ---- ANTI-PATTERN, the one to recognise in someone else's notebook ----
+# df["city_te"] = df.groupby("city")["y"].transform("mean")
+# Every row's own target sits inside its own feature. A singleton level encodes to its own label;
+# CV looks superb; test collapses. Same failure whether you write it before OR after the split,
+# because the crime is the row seeing itself, not the frame boundary.
+</code></pre>
+<p class="wnote">Two sentences will pass any interview on this: <em>"target encoding replaces the level
+with the mean target of the OTHER rows, computed out-of-fold and shrunk towards the global mean, and
+the test set uses the full-train map"</em>, and <em>"the naive <code>transform('mean')</code> version
+leaks each row's own label, which is why its CV score is unbelievable in the literal sense"</em>.</p>
+</details>
+
+<div class="summary"><b>The routing rule, in one breath.</b> Ordered column → ordinal with explicit
+<code>categories=</code>. Small $K$ → one-hot, dropping a level only for an unpenalised linear model
+you intend to interpret. Large $K$ → native categorical if the model is a booster, frequency or binary if you want something cheap and target-free,
+out-of-fold target encoding if you want the signal and will pay for it, hashing if $K$ is not even
+bounded. Target $y$ → <code>LabelEncoder</code>, and nowhere else.</div>
+
+<h4>22.2.11 &nbsp; Feature selection: filter vs wrapper vs embedded</h4>
+
+<p>Cleaning added columns (§22.2.6's indicators), encoding multiplied them (§22.2.10's one-hot), and
+§22.3 will add lags and calendar parts on top. So the reverse question arrives on schedule, and the
+answer is not "fewer columns is tidier": dropping features lowers variance,
+shortens every fit in the tuning loop, produces a model you can explain in a sentence, and shrinks the
+schema someone has to keep alive in production. The whole field splits on <b>one question — how much
+does the selector know about the model you will actually fit?</b></p>
+
+<p><b>Filter — score each feature against the target on its own, with no model in the loop.</b>
+<code>VarianceThreshold</code> is the zeroth step and is not even supervised: it removes constant and
+near-constant columns (a flag that is always 1, a leftover key with one value). Its threshold is in the
+column's own units, so run it <em>before</em> scaling, or on 0/1 dummies where the variance of a level
+is $p(1-p)$ and the threshold is a readable "drop levels rarer than this".
+<code>SelectKBest</code>/<code>SelectPercentile</code> then rank by a univariate statistic, and the
+choice of statistic is the interview question: <code>f_classif</code> is a one-way ANOVA $F$ and sees
+only <b>differences in class means</b> — linear, monotone dependence — while
+<code>mutual_info_classif</code> estimates $I(X_j; y)$ from a $k$-nearest-neighbour density estimate
+and sees <b>any</b> dependence, at the price of being slower and stochastic (pass it a
+<code>random_state</code> or your shortlist changes between runs). The regression twins are
+<code>f_regression</code> and <code>mutual_info_regression</code>. Correlation screens live in this
+family too — drop one of each pair of near-duplicate columns, rank the rest by $|r|$ against the target
+— and they carry two bugs that §21 names: <b>including the target column</b> in the "drop highly
+correlated features" loop, which quietly deletes the target's best proxy or the target itself, and
+computing the screen on the full frame before splitting. The family's blind spot is structural: a
+feature that is useless alone and decisive in combination — the XOR pair — scores zero on every
+univariate statistic and is cut first.</p>
+
+<p><b>Wrapper — search over subsets, scoring each candidate by re-fitting the real model.</b>
+<code>RFE</code> fits, ranks the features by <code>coef_</code> or <code>feature_importances_</code>,
+deletes the weakest <code>step</code>, refits, and repeats until the count you asked for remains —
+about $d/\text{step}$ fits, with the count supplied by you. <code>RFECV</code> wraps cross-validation
+around that count so the data chooses it. <code>SequentialFeatureSelector</code> is the greedy search
+proper: <code>direction="forward"</code> starts from the empty set and adds whichever feature most
+improves the CV score; <code>direction="backward"</code> starts from everything and removes whichever
+costs least. Forward is the cheap one when the final set is small; backward is expensive but judges
+each feature <em>in the company of the others</em>, so it can keep a feature that only pays off
+alongside another. Costs run from $O(d)$ model fits to $O(d^2)$ CV-fits — with a thirty-second model
+and two hundred columns, do that arithmetic before you type it. Because the scorer <em>is</em> the
+model, wrappers respect interactions and are faithful by construction; the price beyond compute is
+that a greedy search on a noisy CV estimate overfits the selection criterion itself, so nest it or
+treat the reported score as optimistic.</p>
+
+<p><b>Embedded — selection falls out of the fit.</b> The $L_1$ penalty drives coefficients to
+<em>exactly</em> zero, so
+<code>SelectFromModel(LassoCV(...))</code> or
+<code>LogisticRegression(penalty="l1", solver="liblinear")</code> selects while it fits. One caveat
+inherited from §22.2.9: it is a penalty on coefficients, so scale first or you select by units. A
+second, less known: <code>SelectFromModel</code>'s default threshold is the mean absolute coefficient
+for a general estimator but effectively <em>zero</em> for a Lasso, so with a Lasso it is
+<code>alpha</code>, not the threshold, doing all the selecting. Trees hand you
+<code>feature_importances_</code> free with the fit —
+<code>SelectFromModel(RandomForestClassifier(...), threshold="median")</code> — but that is MDI,
+computed on the training splits and <b>biased towards continuous and high-cardinality columns</b>: a random id with thousands of candidate thresholds can outrank a
+real binary signal, so never let MDI alone decide what to delete. <b>Permutation importance is the
+referee, not a fourth family</b> — refit nothing, shuffle one column of <em>held-out</em> data, measure
+the score drop. It is model-agnostic, measured where it
+matters, and it is the answer to "how do you know this feature does anything?".</p>
+
+<div class="scrollx">
+<table>
+<caption>Choosing a family: cost, what it can see, and how faithful the answer is</caption>
+<thead><tr><th>Family</th><th>Cost</th><th>Sees interactions?</th><th>Model-faithful?</th>
+<th>When</th></tr></thead>
+<tbody>
+<tr><td><b>Filter</b><br><code>VarianceThreshold</code>, <code>SelectKBest</code>, correlation screen</td>
+<td>$d$ univariate scores, <b>zero model fits</b> — milliseconds</td>
+<td><b>No.</b> Each column is scored alone, so an XOR pair is invisible</td>
+<td><b>No.</b> The shortlist is the same whichever model you go on to fit</td>
+<td>$d$ in the thousands; first-pass triage before anything expensive; or you have sixty seconds and
+need a defensible cut</td></tr>
+<tr><td><b>Wrapper</b><br><code>RFE</code>, <code>RFECV</code>, <code>SequentialFeatureSelector</code></td>
+<td>$O(d)$ fits (RFE) up to $O(d^2)$ <em>CV</em>-fits (sequential search) — the expensive family by an
+order of magnitude</td>
+<td><b>Yes.</b> Every candidate subset is scored as a whole</td>
+<td><b>Yes.</b> The model itself is the scoring function</td>
+<td>$d$ in the tens, a cheap model, and the exact subset matters — a deployment shortlist, a
+feature-cost constraint</td></tr>
+<tr><td><b>Embedded</b><br>$L_1$ via <code>SelectFromModel</code>, tree importances</td>
+<td><b>One fit</b> (or one regularisation path) — you were paying for it anyway</td>
+<td><b>Partly.</b> The model sees all features jointly, but selection is a by-product rather than a
+search</td>
+<td><b>Yes</b>, for that model — an $L_1$ shortlist is not a random forest's shortlist</td>
+<td><b>The default.</b> You were going to fit a penalised or tree model regardless, so the selection
+is free</td></tr>
+<tr><td><b>Permutation importance</b><br>(audit, not selection)</td>
+<td><code>n_repeats</code> $\times\, d$ extra <em>prediction</em> passes — no refits</td>
+<td>Yes, in the sense that it measures the fitted model's actual use of the column</td>
+<td><b>Yes</b>, and measured on held-out rows</td>
+<td>after any of the three, to check the survivors are earning their place — and the number you quote
+to a stakeholder</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="warn"><b>The universal rule: a selector is a fitted model, so it lives INSIDE the
+<code>Pipeline</code>.</b> Selection consumes $y$; therefore it learns; therefore fitting it on the
+full frame leaks — and this is the most spectacular leak in the book, because unlike a leaked median
+it does not merely flatter a real model, it <b>manufactures signal out of pure noise</b>: §21.7 picks
+the best-scoring features from a matrix of random numbers with random labels, and cross-validation
+reports an accuracy far above chance until the same selection is redone inside each training fold,
+where it collapses to chance as it must. The fix is structural, not a matter of care:
+<code>Pipeline([("pre", ct), ("sel", SelectKBest(f_classif, k=20)), ("model", est)])</code>, so
+<code>cross_val_score</code> and <code>GridSearchCV</code> refit the selector on the training part of
+every fold — and <code>sel__k</code> becomes just another hyperparameter in the grid.
+<b>Corollary worth saying out loud in a viva:</b> once the selector refits per fold, the surviving set
+<em>differs between folds</em>, and that instability is a result rather than an annoyance. If the ten
+"best" features are ten different features each time, the selection is fitting noise — keep every
+column and regularise instead.</div>
+
+<div class="note"><b>Three different answers to "too many columns", and they are not
+interchangeable.</b> <b>Selection</b> keeps a subset of the <em>original</em> columns: the model stays
+nameable and the production schema actually shrinks. <b>Regularisation</b> keeps all of them and
+shrinks the coefficients — the better choice when features are many and
+correlated, because ridge shares credit between twins instead of arbitrarily picking one.
+<b>Dimensionality reduction</b> keeps all the information and replaces
+the columns with orthogonal combinations — but it never looks at $y$, and no component has a name, so
+you still compute every original feature at serving time. Interviews like this distinction because
+candidates routinely offer PCA when the question was about selection.</div>
+
+<details class="code"><summary>Code — one selector per family on the same data, each printing its survivors (sklearn)</summary>
+<pre><code>import numpy as np
+from sklearn.datasets import make_classification
+from sklearn.feature_selection import (VarianceThreshold, SelectKBest, f_classif,
+                                       mutual_info_classif, RFECV, SelectFromModel)
+from sklearn.linear_model import LogisticRegression, LassoCV
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+
+# shuffle=False puts the columns in a known order: informative first, then redundant
+# (exact linear combinations of the informative ones), then pure noise.
+X, y  = make_classification(n_samples=600, n_features=20, n_informative=5,
+                            n_redundant=5, shuffle=False, random_state=0)
+names = np.array([f"f{i}" for i in range(X.shape[1])])
+
+# ---- FILTER: no model anywhere. Constants out first, then univariate scores. ----
+vt = VarianceThreshold(threshold=0.0).fit(X)              # unsupervised; scale-dependent
+kb = SelectKBest(f_classif,          k=5).fit(X, y)       # ANOVA F: mean differences only
+mi = SelectKBest(mutual_info_classif, k=5).fit(X, y)      # ANY dependence; stochastic, slower
+print("variance kept :", int(vt.get_support().sum()), "of", X.shape[1])
+print("f_classif     :", names[kb.get_support()])
+print("mutual_info   :", names[mi.get_support()])
+
+# ---- WRAPPER: refits the real model on shrinking subsets; CV picks how many to keep. ----
+Xs   = StandardScaler().fit_transform(X)                  # coef_-ranked, so scale first
+rfe  = RFECV(LogisticRegression(max_iter=2000), cv=5, scoring="accuracy", step=1).fit(Xs, y)
+print("RFECV         :", names[rfe.support_], "| n kept:", rfe.n_features_)
+
+# ---- EMBEDDED: the L1 fit zeroes coefficients and selection is the by-product. ----
+# NOTE: with a Lasso, SelectFromModel's default threshold is ~0, so alpha does the selecting.
+l1 = Pipeline([("sc", StandardScaler()),
+               ("sel", SelectFromModel(LassoCV(cv=5, random_state=0)))]).fit(X, y)
+print("L1 / Lasso    :", names[l1.named_steps["sel"].get_support()])
+</code></pre>
+<p class="wnote">Run it and the three shortlists overlap but do not coincide — which is the lesson, not
+a bug: the filter ranks columns in isolation, the wrapper ranks them as a team, and the embedded
+selector ranks them as one particular model happens to use them. Say <em>which</em> family you used and
+<em>why</em>, because "I selected the top features" is the answer that gets followed up.</p>
+</details>
+
+<details class="code"><summary>Code — forward vs backward search on the same data, refereed by permutation importance (sklearn)</summary>
+<pre><code>from sklearn.ensemble import RandomForestClassifier
+from sklearn.feature_selection import RFE, SequentialFeatureSelector
+from sklearn.inspection import permutation_importance
+from sklearn.model_selection import train_test_split
+
+X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.3, random_state=0)
+est   = LogisticRegression(max_iter=2000)
+Xtr_s = StandardScaler().fit_transform(X_tr)
+
+# FORWARD: start empty, add the feature that most improves the CV score. ~d*k fits x cv folds.
+fwd = SequentialFeatureSelector(est, n_features_to_select=5, direction="forward",
+                                cv=5, scoring="accuracy").fit(Xtr_s, y_tr)
+# BACKWARD by elimination: start full, drop the smallest |coef| each round. ~d fits, no inner CV
+# (SequentialFeatureSelector(direction="backward") is the CV-scored -- and far slower -- version).
+bwd = RFE(est, n_features_to_select=5, step=1).fit(Xtr_s, y_tr)
+print("forward  :", sorted(names[fwd.get_support()].tolist()))
+print("backward :", sorted(names[bwd.get_support()].tolist()))
+print("agree on :", sorted(set(names[fwd.get_support()].tolist()) &amp;
+                           set(names[bwd.get_support()].tolist())))
+
+# THE REFEREE: fit the model you will actually ship, then ask what it uses -- on HELD-OUT rows.
+rf   = RandomForestClassifier(n_estimators=300, random_state=0).fit(X_tr, y_tr)
+perm = permutation_importance(rf, X_te, y_te, n_repeats=10, random_state=0, scoring="accuracy")
+for j in np.argsort(perm.importances_mean)[::-1][:8]:
+    print(f"{names[j]:&gt;4}  perm={perm.importances_mean[j]: .4f} "
+          f"+/- {perm.importances_std[j]:.4f}   mdi={rf.feature_importances_[j]:.4f}")
+# perm near zero while mdi is large = MDI's cardinality bias (Sec 11.7), or a redundant twin.
+</code></pre>
+<p class="wnote">When forward and backward disagree, suspect <b>correlated features</b> before you
+suspect a bug — this fixture's redundant columns are exact linear combinations of the informative ones,
+so forward grabs whichever twin it meets first and backward may retain the other, and both subsets are
+equally good. Permutation importance then rates <em>both</em> twins near zero, because shuffling one
+leaves the other carrying the signal; the honest reading is "this pair matters, either member will do",
+and the fix is to cluster correlated columns and keep one per cluster (or read SHAP,) rather than to trust whichever list you printed last.</p>
+</details>
+
+<div class="summary"><b>The one-line answer.</b> <em>"Filter scores features against the target with no
+model and is blind to interactions; wrapper re-fits the actual model on candidate subsets and is
+faithful but $O(d)$–$O(d^2)$ fits expensive; embedded gets selection free from an $L_1$ or tree fit.
+Whichever I use, it goes inside the Pipeline so it refits on every CV fold, and I check the survivors
+with permutation importance on held-out data."</em> That sentence contains the table, the cost
+argument and the leakage rule, which is everything the question is asking for.</div>
 
 <h3>22.3 &nbsp; Datetime &amp; time-series preprocessing</h3>
 

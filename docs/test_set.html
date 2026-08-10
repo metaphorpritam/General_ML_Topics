@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ML Test Set — 100 Questions + 50 Coding Problems</title>
+<title>ML Test Set — 128 MCQs + 55 Coding Problems</title>
 <script>
 window.MathJax = {
   tex: { inlineMath: [['$','$'], ['\\(','\\)']],
@@ -118,6 +118,7 @@ details.hint > summary { cursor: pointer; font-weight: 600; font-size: 13px; }
 details.sol { border-left: 4px solid var(--sol-edge); background: var(--sol-bg);
   padding: 8px 12px; margin: 8px 0 2px 0; border-radius: 3px; }
 details.sol > summary { cursor: pointer; font-weight: 700; }
+.copybtn { font: inherit; font-size: 11.5px; padding: 2px 10px; margin: 6px 0 2px 0; cursor: pointer; background: var(--paper); color: var(--ink); border: 1px solid var(--rule); border-radius: 4px; }
 .expected { border-left: 4px solid var(--gold); background: var(--boxbg);
   padding: 6px 10px; margin: 6px 0; border-radius: 3px; font-size: 13px; }
 .note { border-left: 4px solid var(--gold); background: var(--boxbg); padding: 8px 12px; margin: 10px 0; border-radius: 3px; }
@@ -250,6 +251,20 @@ document.addEventListener('DOMContentLoaded', function () {
     codeEl.innerHTML = out;
   });
 
+  /* copy buttons on every solution block */
+  Array.prototype.forEach.call(document.querySelectorAll('details.sol pre'), function (pre) {
+    var b = document.createElement('button');
+    b.textContent = 'copy code'; b.className = 'copybtn';
+    b.onclick = function () {
+      var codeEl = pre.querySelector('code');
+      var t = codeEl ? codeEl.textContent : pre.textContent;
+      if (navigator.clipboard) { navigator.clipboard.writeText(t).then(function () {
+        b.textContent = 'copied \u2713'; setTimeout(function () { b.textContent = 'copy code'; }, 1500);
+      }); }
+    };
+    pre.parentNode.insertBefore(b, pre);
+  });
+
   /* MCQ engine: click an option -> instant right/wrong + explanation + score */
   var score = { answered: 0, correct: 0 };
   var scorebar = document.getElementById('scorebar');
@@ -283,15 +298,15 @@ document.addEventListener('DOMContentLoaded', function () {
 <button id="sbtoggle" aria-label="toggle contents">&#9776;</button>
 <nav id="sidebar">
   <h1>ML Test Set</h1>
-  <div class="crumb">128 MCQs + 50 checked coding problems</div>
+  <div class="crumb">128 MCQs + 55 checked coding problems</div>
   <ul id="toc"></ul>
   <div id="scorebar"></div>
 </nav>
 <main id="main">
 <h1 class="title">Machine Learning — Test Set</h1>
-<div class="subtitle">128 theory &amp; numerical questions + 50 in-browser coding problems &middot; three progressive hints per question &middot; solutions hidden until you ask</div>
+<div class="subtitle">128 theory &amp; numerical questions + 55 in-browser coding problems &middot; three progressive hints per question &middot; solutions hidden until you ask</div>
 
-<div class="note"><b>How to use.</b> <b>MCQs (Q1–Q128):</b> click an option — you get instant right/wrong feedback, the correct answer is highlighted, and a full explanation (with the computation, for numericals) appears; your running score is in the sidebar. <b>Coding problems (C1–C50):</b> write your answer in the code cell and click <b>&#9654;</b> (or Ctrl/Shift+Enter) — the built-in checks at the bottom of each cell verify your code and print <code>ALL CHECKS PASSED</code> or the failing assertion. Three progressive hints (concept → approach → nearly-there) sit under every coding problem, with the full solution below them. The first run downloads the Python runtime and numpy/pandas/scikit-learn into your browser (~1–2 minutes once, then cached); internet is required for that first run. At least half the set drills probability, Bayes' theorem and statistics; learning theory (PAC/VC) is deliberately excluded.</div>
+<div class="note"><b>How to use.</b> <b>MCQs (Q1–Q128):</b> click an option — you get instant right/wrong feedback, the correct answer is highlighted, and a full explanation (with the computation, for numericals) appears; your running score is in the sidebar. <b>Coding problems (C1–C55):</b> write your answer in the code cell and click <b>&#9654;</b> (or Ctrl/Shift+Enter) — the built-in checks at the bottom of each cell verify your code and print <code>ALL CHECKS PASSED</code> or the failing assertion. Three progressive hints (concept → approach → nearly-there) sit under every coding problem, with the full solution below them. The first run downloads the Python runtime and numpy/pandas/scikit-learn into your browser (~1–2 minutes once, then cached); internet is required for that first run. At least half the set drills probability, Bayes' theorem and statistics; learning theory (PAC/VC) is deliberately excluded.</div>
 
 <script type="py-editor" env="mlts" setup config='{"packages": ["numpy", "pandas", "scikit-learn"]}'>
 # shared environment for every coding problem on this page
@@ -4187,8 +4202,389 @@ print("ALL CHECKS PASSED — C50")
 </code></pre><p>Each layer's local gradient is the sigmoid derivative $a(1-a)$ evaluated at that layer's own activation, and the chain rule composes these backward exactly as the numerical finite-difference check verifies for $\partial L/\partial W_1$.</p></details>
 </div>
 
+
+<h2 id="c07">Part D &middot; Coding 7 — Feature Selection &amp; Engineering (C51–C55)</h2>
+
+<div class="q" id="c51">
+<p><span class="qhead">C51</span> <span class="qmeta">filter method &middot; ANOVA F</span></p>
+<p>Filter selection scores every feature <em>independently</em> of the model. Implement <code>select_k_best_f(X, y, k)</code>: compute the one-way ANOVA F statistic of each column of <code>X</code> against the class labels <code>y</code> with <code>sklearn.feature_selection.f_classif</code>, then return a boolean NumPy mask of length <code>X.shape[1]</code> that is <code>True</code> for the <code>k</code> largest F statistics and <code>False</code> elsewhere. Build the mask yourself from the F values (<code>np.argsort</code>) &mdash; the checks compare it against <code>SelectKBest(f_classif, k=k).get_support()</code>.</p>
+<script type="py-editor" env="mlts">
+# C51 — filter selection: top-k features by the ANOVA F statistic
+# TASK: return a boolean mask (dtype bool, length = n_features) that is True for
+#       the k columns with the largest f_classif F statistic.
+from sklearn.feature_selection import f_classif
+
+def select_k_best_f(X, y, k):
+    X = np.asarray(X, dtype=float)
+    ...  # YOUR CODE HERE
+
+# --- checks (do not modify) ---
+from sklearn.datasets import make_classification
+from sklearn.feature_selection import SelectKBest
+
+X, y = make_classification(n_samples=300, n_features=10, n_informative=3,
+                           n_redundant=0, n_repeated=0, class_sep=1.5, random_state=0)
+
+m3 = select_k_best_f(X, y, 3)
+assert isinstance(m3, np.ndarray), "return a NumPy array"
+assert m3.dtype == bool, f"mask must be dtype bool, got {m3.dtype}"
+assert m3.shape == (10,), f"mask must have one entry per feature, got {m3.shape}"
+assert int(m3.sum()) == 3, f"exactly k entries must be True, got {int(m3.sum())}"
+
+ref3 = SelectKBest(f_classif, k=3).fit(X, y).get_support()
+assert np.array_equal(m3, ref3), f"mask disagrees with SelectKBest: {np.where(m3)[0]} vs {np.where(ref3)[0]}"
+assert sorted(np.where(m3)[0].tolist()) == [1, 4, 7], f"top-3 indices wrong: {np.where(m3)[0]}"
+
+for k in (1, 5, 10):
+    mk = select_k_best_f(X, y, k)
+    refk = SelectKBest(f_classif, k=k).fit(X, y).get_support()
+    assert np.array_equal(mk, refk), f"k={k} mask disagrees with SelectKBest"
+    assert int(mk.sum()) == k, f"k={k}: wrong number selected"
+
+# the selection must be nested: the top-3 set is contained in the top-5 set
+m5 = select_k_best_f(X, y, 5)
+assert np.all(m5[m3]), "every top-3 feature must also be in the top-5"
+
+# the strongest univariate feature is the one with the largest F value
+F, _ = f_classif(X, y)
+assert np.where(select_k_best_f(X, y, 1))[0][0] == int(np.argmax(F)), "k=1 must pick argmax(F)"
+
+# ties must not break the count: column 10 duplicates column 4, so F[4] == F[10]
+# exactly at the k=3 boundary. A `F >= threshold` mask would return 4 features.
+Xtie = np.column_stack([X, X[:, 4]])
+Ftie, _ = f_classif(Xtie, y)
+assert np.isclose(Ftie[4], Ftie[10]), "fixture sanity check: the duplicated column ties"
+mt = select_k_best_f(Xtie, y, 3)
+assert isinstance(mt, np.ndarray) and mt.dtype == bool, "tie fixture: mask must stay a bool array"
+assert mt.shape == (11,), f"tie fixture: mask must have 11 entries, got {mt.shape}"
+assert int(mt.sum()) == 3, f"with tied F values you must still select exactly k=3, got {int(mt.sum())}"
+assert mt[1] and mt[7], "the two strongest features must be selected regardless of the tie"
+
+print("ALL CHECKS PASSED — C51")
+</script>
+<details class="hint"><summary>Hint 1 — concept</summary><p>A <em>filter</em> ranks features by a statistic computed from the data alone, with no model in the loop. The one-way ANOVA F compares the between-class variance of a feature to its within-class variance: a large F means the class means are far apart relative to the noise, so the feature separates the classes on its own.</p></details>
+<details class="hint"><summary>Hint 2 — approach</summary><p><code>F, p = f_classif(X, y)</code> gives one F value per column. You need the indices of the <code>k</code> largest entries of <code>F</code>: <code>np.argsort(F)</code> sorts ascending, so the last <code>k</code> positions (or <code>np.argsort(-F)[:k]</code>) are the winners.</p></details>
+<details class="hint"><summary>Hint 3 — nearly there</summary><p>Start from <code>mask = np.zeros(X.shape[1], dtype=bool)</code>, then set <code>mask[top_idx] = True</code>. Do not build it with <code>F &gt;= threshold</code> comparisons &mdash; the checks require exactly <code>k</code> True entries.</p></details>
+<details class="sol"><summary>Solution C51</summary><pre><code>from sklearn.feature_selection import f_classif
+
+def select_k_best_f(X, y, k):
+    X = np.asarray(X, dtype=float)
+    F, _p = f_classif(X, y)
+    top = np.argsort(-F)[:k]
+    mask = np.zeros(X.shape[1], dtype=bool)
+    mask[top] = True
+    return mask</code></pre>
+<p>This is exactly what <code>SelectKBest(f_classif, k=k)</code> does internally: score, rank, keep the top <code>k</code>. Because the ranking is a total order on the scores, the selected sets are nested as <code>k</code> grows &mdash; a property wrapper methods like RFE do <em>not</em> guarantee. The weakness is the flip side of the same coin: each feature is judged alone, so a feature that is useless by itself but informative in combination with another is discarded.</p></details>
+</div>
+
+<div class="q" id="c52">
+<p><span class="qhead">C52</span> <span class="qmeta">wrapper &middot; RFE</span></p>
+<p>A <em>wrapper</em> lets the model itself decide. Implement <code>rfe_select(X, y, n_features=3)</code>: fit <code>RFE(LogisticRegression(max_iter=1000), n_features_to_select=n_features)</code> on <code>X, y</code> and return the indices of the retained columns as a <strong>sorted list of plain Python <code>int</code>s</strong>. The checks assert the exact index set on the fixture data, re-derive the answer on a second dataset, <em>and</em> verify that a logistic regression refit on only those columns clears an accuracy floor &mdash; note that the set RFE returns is <em>not</em> the univariate top-3 of C51.</p>
+<script type="py-editor" env="mlts">
+# C52 — wrapper selection: recursive feature elimination
+# TASK: return sorted([int i for each column kept by RFE]).
+#       Use RFE(LogisticRegression(max_iter=1000), n_features_to_select=n_features).
+from sklearn.feature_selection import RFE
+from sklearn.linear_model import LogisticRegression
+
+def rfe_select(X, y, n_features=3):
+    ...  # YOUR CODE HERE
+
+# --- checks (do not modify) ---
+from sklearn.datasets import make_classification
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
+
+X, y = make_classification(n_samples=300, n_features=10, n_informative=3,
+                           n_redundant=0, n_repeated=0, class_sep=1.5, random_state=0)
+
+idx = rfe_select(X, y, 3)
+assert isinstance(idx, list), f"return a list, got {type(idx).__name__}"
+assert all(isinstance(i, int) for i in idx), "entries must be plain Python ints"
+assert idx == sorted(idx), "the list must be sorted ascending"
+assert len(idx) == 3 and len(set(idx)) == 3, f"need 3 distinct indices, got {idx}"
+assert idx == [0, 1, 9], f"RFE index set wrong: {idx}"
+
+# refit on the selected columns only: it must clear the accuracy floor
+Xs = X[:, idx]
+Xtr, Xte, ytr, yte = train_test_split(Xs, y, test_size=0.25, random_state=0)
+acc = float(accuracy_score(yte, LogisticRegression(max_iter=1000).fit(Xtr, ytr).predict(Xte)))
+assert acc >= 0.78, f"accuracy on the RFE columns too low: {acc}"
+
+# a wrapper is not a filter: RFE's choice differs from the univariate top-3
+from sklearn.feature_selection import f_classif
+F, _ = f_classif(X, y)
+assert sorted(np.argsort(-F)[:3].tolist()) == [1, 4, 7], "fixture sanity check"
+assert idx != [1, 4, 7], "RFE must not simply reproduce the univariate ranking here"
+
+idx5 = rfe_select(X, y, 5)
+assert len(idx5) == 5 and set(idx).issubset(set(idx5)), "the 3 survivors must survive at n=5 too"
+
+# a second, independent dataset: compare against sklearn's own RFE, not a fixed list
+X2, y2 = make_classification(n_samples=240, n_features=8, n_informative=3,
+                             n_redundant=0, n_repeated=0, class_sep=1.2, random_state=7)
+got2 = rfe_select(X2, y2, 4)
+ref2 = sorted(int(i) for i in np.where(
+    RFE(LogisticRegression(max_iter=1000), n_features_to_select=4).fit(X2, y2).support_)[0])
+assert got2 == ref2, f"second dataset: got {got2}, RFE says {ref2}"
+assert all(isinstance(i, int) for i in got2), "second dataset: entries must be plain Python ints"
+F2, _ = f_classif(X2, y2)
+assert got2 != sorted(np.argsort(-F2)[:4].tolist()), "second dataset: RFE must not equal the univariate top-4"
+
+print("ALL CHECKS PASSED — C52")
+</script>
+<details class="hint"><summary>Hint 1 — concept</summary><p>RFE fits the estimator on all features, ranks them by the magnitude of the fitted coefficients, drops the weakest, and refits &mdash; recursively, until only <code>n_features_to_select</code> remain. Because every decision is made with the other surviving features present, it can keep a feature that is worthless on its own but valuable in combination.</p></details>
+<details class="hint"><summary>Hint 2 — approach</summary><p>After <code>sel = RFE(...).fit(X, y)</code>, the attribute <code>sel.support_</code> is a boolean mask of kept columns (and <code>sel.ranking_</code> gives 1 for the survivors, 2, 3, … for the order of elimination). <code>np.where(sel.support_)[0]</code> turns the mask into indices.</p></details>
+<details class="hint"><summary>Hint 3 — nearly there</summary><p><code>np.where(...)</code> yields NumPy integers, which fail the <code>isinstance(i, int)</code> check. Convert with <code>sorted(int(i) for i in np.where(sel.support_)[0])</code> &mdash; or <code>np.where(sel.support_)[0].tolist()</code>, whose elements are already plain ints.</p></details>
+<details class="sol"><summary>Solution C52</summary><pre><code>from sklearn.feature_selection import RFE
+from sklearn.linear_model import LogisticRegression
+
+def rfe_select(X, y, n_features=3):
+    sel = RFE(LogisticRegression(max_iter=1000),
+              n_features_to_select=n_features).fit(X, y)
+    return sorted(int(i) for i in np.where(sel.support_)[0])</code></pre>
+<p>The interesting result is that RFE keeps columns 0 and 9, which the ANOVA filter of C51 ranks near the bottom: individually they barely shift the class means, but jointly with column 1 they carve out a decision boundary worth about 81% test accuracy. That is the whole case for wrappers &mdash; and their cost, since RFE refits the model once per elimination step, whereas <code>f_classif</code> is a single vectorised pass. LogisticRegression's default <code>lbfgs</code> solver is deterministic, so no <code>random_state</code> is needed for reproducibility here.</p></details>
+</div>
+
+<div class="q" id="c53">
+<p><span class="qhead">C53</span> <span class="qmeta">embedded &middot; L1 / Lasso</span></p>
+<p>An <em>embedded</em> method selects as a side effect of fitting. Implement <code>lasso_select(X, y, alpha)</code>: fit <code>SelectFromModel(Lasso(alpha=alpha, random_state=0))</code> on <code>X, y</code> and return the surviving column indices as a sorted list of plain Python <code>int</code>s. The fixture is a <code>make_regression</code> problem with 12 features of which only 3 are informative; at <code>alpha=1.0</code> the L1 penalty must recover exactly those 3 and drop at least 6 of the rest.</p>
+<script type="py-editor" env="mlts">
+# C53 — embedded selection: L1 (Lasso) shrinks useless coefficients to exactly zero
+# TASK: return sorted list of ints = columns kept by
+#       SelectFromModel(Lasso(alpha=alpha, random_state=0)).fit(X, y)
+from sklearn.feature_selection import SelectFromModel
+from sklearn.linear_model import Lasso
+
+def lasso_select(X, y, alpha):
+    ...  # YOUR CODE HERE
+
+# --- checks (do not modify) ---
+from sklearn.datasets import make_regression
+
+X, y, coef = make_regression(n_samples=200, n_features=12, n_informative=3,
+                             noise=5.0, random_state=0, coef=True)
+informative = sorted(int(i) for i in np.where(coef != 0)[0])
+assert informative == [3, 6, 11], "fixture sanity check"
+
+keep = lasso_select(X, y, 1.0)
+assert isinstance(keep, list), f"return a list, got {type(keep).__name__}"
+assert all(isinstance(i, int) for i in keep), "entries must be plain Python ints"
+assert keep == sorted(keep), "the list must be sorted ascending"
+assert set(informative).issubset(set(keep)), f"all informative features must survive: kept {keep}"
+assert X.shape[1] - len(keep) >= 6, f"at least 6 of 12 features must be dropped, kept {len(keep)}"
+assert keep == [3, 6, 11], f"exactly the informative features should survive: {keep}"
+
+# stronger penalty => a subset (never more features)
+keep_hi = lasso_select(X, y, 5.0)
+assert set(keep_hi).issubset(set(keep)), "a larger alpha must not add features back"
+
+# the survivors really are the ones with non-zero Lasso coefficients
+w = Lasso(alpha=1.0, random_state=0).fit(X, y).coef_
+assert sorted(int(i) for i in np.where(np.abs(w) > 1e-5)[0]) == keep, "survivors must be the non-zero coefficients"
+assert np.allclose(w[[0, 1, 2]], 0.0), "uninformative coefficients must be exactly zero"
+
+# a second, independent dataset: the answer is derived, never memorised
+X2, y2, coef2 = make_regression(n_samples=160, n_features=9, n_informative=4,
+                                noise=4.0, random_state=3, coef=True)
+got2 = lasso_select(X2, y2, 1.0)
+ref2 = sorted(int(i) for i in np.where(
+    SelectFromModel(Lasso(alpha=1.0, random_state=0)).fit(X2, y2).get_support())[0])
+assert got2 == ref2, f"second dataset: got {got2}, SelectFromModel says {ref2}"
+assert all(isinstance(i, int) for i in got2), "second dataset: entries must be plain Python ints"
+assert got2 == sorted(int(i) for i in np.where(coef2 != 0)[0]), \
+    f"second dataset: L1 should recover exactly the informative columns, got {got2}"
+
+print("ALL CHECKS PASSED — C53")
+</script>
+<details class="hint"><summary>Hint 1 — concept</summary><p>The L1 penalty $\alpha\sum_j|w_j|$ has a corner at $w_j=0$; its subgradient is constant in magnitude, so any feature whose correlation with the residual is smaller than $\alpha$ gets its coefficient pushed to <em>exactly</em> zero rather than merely shrunk. Fitting and selecting therefore happen in one optimisation &mdash; that is what "embedded" means.</p></details>
+<details class="hint"><summary>Hint 2 — approach</summary><p><code>SelectFromModel</code> wraps any fitted estimator that exposes <code>coef_</code> or <code>feature_importances_</code>. For an L1 model its default threshold is <code>1e-5</code>, so the survivors are precisely the non-zero coefficients. Fit it with <code>.fit(X, y)</code> and read <code>.get_support()</code>.</p></details>
+<details class="hint"><summary>Hint 3 — nearly there</summary><p><code>np.where(sel.get_support())[0].tolist()</code> already yields plain Python ints; wrap it in <code>sorted(...)</code> to satisfy the ordering check.</p></details>
+<details class="sol"><summary>Solution C53</summary><pre><code>from sklearn.feature_selection import SelectFromModel
+from sklearn.linear_model import Lasso
+
+def lasso_select(X, y, alpha):
+    sel = SelectFromModel(Lasso(alpha=alpha, random_state=0)).fit(X, y)
+    return sorted(int(i) for i in np.where(sel.get_support())[0])</code></pre>
+<p>With 3 informative features out of 12 and only mild noise, <code>alpha=1.0</code> zeroes all nine nuisance coefficients and keeps <code>[3, 6, 11]</code> &mdash; a perfect support recovery. Note the ridge ($L_2$) penalty would shrink those nine towards zero but never <em>to</em> zero, so it selects nothing; and because the L1 path is monotone in $\alpha$ here, raising the penalty can only remove features, never restore them. Lasso is scale-sensitive, so in practice you would standardise the columns before trusting the support.</p></details>
+</div>
+
+<div class="q" id="c54">
+<p><span class="qhead">C54</span> <span class="qmeta">target encoding &middot; leakage &middot; OOF</span></p>
+<p>Encoding a categorical column by its per-category mean target leaks: every row contributes to its own encoding. The fix is <em>out-of-fold</em> encoding. Implement <code>target_encode_oof(cat_series, y, n_splits=5, seed=0)</code>: build <code>KFold(n_splits=n_splits, shuffle=True, random_state=seed)</code> over the row positions; for each split compute the per-category mean of <code>y</code> on the <strong>training</strong> rows only and write it into the validation rows; a category absent from that fold's training rows falls back to the mean of <code>y</code> over those same training rows. Return a <code>float</code> <code>pandas.Series</code> carrying <code>cat_series.index</code>.</p>
+<script type="py-editor" env="mlts">
+# C54 — leakage-safe out-of-fold target encoding
+# TASK: for each KFold(n_splits, shuffle=True, random_state=seed) split of the row
+#       POSITIONS, encode the validation rows with per-category means of y computed
+#       on the training rows only; unseen category -> mean of y on those training
+#       rows. Return a float Series indexed like cat_series.
+from sklearn.model_selection import KFold
+
+def target_encode_oof(cat_series, y, n_splits=5, seed=0):
+    cat_series = pd.Series(cat_series)
+    y = pd.Series(y)
+    ...  # YOUR CODE HERE
+
+# --- checks (do not modify) ---
+idx = [10, 20, 30, 40, 50, 60, 70, 80]
+cat = pd.Series(["a", "b", "a", "c", "b", "a", "c", "b"], index=idx)
+yv = pd.Series([1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0], index=idx)
+
+enc = target_encode_oof(cat, yv, n_splits=5, seed=0)
+assert isinstance(enc, pd.Series), f"return a pandas Series, got {type(enc).__name__}"
+assert list(enc.index) == idx, f"output must keep the input index, got {list(enc.index)}"
+assert enc.notna().all(), "every row must receive an encoding"
+assert str(enc.dtype).startswith("float"), f"dtype must be float, got {enc.dtype}"
+
+expected = np.array([0.5, 1.0, 0.5, 1.0, 0.0, 1.0, 0.0, 1.0])
+assert np.allclose(enc.to_numpy(), expected), f"encoding wrong:\n got {enc.to_numpy()}\n want {expected}"
+
+# it must NOT be the naive (leaky) groupby-mean encoding
+naive = cat.map(yv.groupby(cat.to_numpy()).mean()).to_numpy()
+assert not np.allclose(enc.to_numpy(), naive), "output equals the leaky groupby-mean encoding"
+assert int(np.sum(~np.isclose(enc.to_numpy(), naive))) == 8, "every row should differ from the naive encoding here"
+
+# every value must be reproducible from OUT-OF-FOLD data only
+kf = KFold(n_splits=5, shuffle=True, random_state=0)
+for tr, va in kf.split(np.arange(len(cat))):
+    means = yv.iloc[tr].groupby(cat.iloc[tr].to_numpy()).mean()
+    gmean = float(yv.iloc[tr].mean())
+    want = np.array([float(means.get(c, gmean)) for c in cat.iloc[va]])
+    got = enc.iloc[va].to_numpy()
+    assert np.allclose(got, want), f"fold {va.tolist()} used in-fold data: got {got}, want {want}"
+
+# a category seen only once must fall back to the training-fold mean of y
+cat2 = pd.Series(["a", "b", "a", "z", "b", "a", "b", "b"])
+y2 = pd.Series([1.0, 0.0, 1.0, 7.0, 0.0, 1.0, 0.0, 0.0])
+e2 = target_encode_oof(cat2, y2, n_splits=5, seed=0)
+assert abs(float(e2.iloc[3]) - 1.0 / 3.0) < 1e-9, f"unseen category must use the fold mean, got {e2.iloc[3]}"
+assert abs(float(e2.iloc[3]) - 7.0) > 1e-9, "the row's own target must never reach its encoding"
+
+# deterministic for a fixed seed
+assert np.allclose(target_encode_oof(cat, yv, 5, 0).to_numpy(), enc.to_numpy()), "must be reproducible"
+assert not np.allclose(target_encode_oof(cat, yv, 5, 1).to_numpy(), enc.to_numpy()), \
+    "the seed must actually reach KFold (seed=1 should give a different split here)"
+
+# --- a larger fixture where coincidences are impossible ---
+rng = np.random.default_rng(0)
+n = 60
+big_idx = list(range(1000, 1000 + n))
+cat3 = pd.Series(rng.choice(list("abcde"), size=n), index=big_idx)
+y3 = pd.Series(rng.normal(size=n) + (cat3.to_numpy() == "a") * 3.0, index=big_idx)
+e3 = target_encode_oof(cat3, y3, n_splits=4, seed=42)
+assert isinstance(e3, pd.Series) and list(e3.index) == big_idx, "large fixture: index must be preserved"
+assert e3.notna().all() and str(e3.dtype).startswith("float"), "large fixture: float, no NaN"
+
+kf3 = KFold(n_splits=4, shuffle=True, random_state=42)
+for tr, va in kf3.split(np.arange(n)):
+    means = y3.iloc[tr].groupby(cat3.iloc[tr].to_numpy()).mean()
+    gmean = float(y3.iloc[tr].mean())
+    want = np.array([float(means.get(c, gmean)) for c in cat3.iloc[va]])
+    assert np.allclose(e3.iloc[va].to_numpy(), want), "large fixture: encoding is not out-of-fold"
+
+# THE leakage test: perturbing a single row's target must not change that row's encoding
+for pos in (0, 7, 23, 44, 59):
+    y_pert = y3.copy()
+    y_pert.iloc[pos] += 100.0
+    e_pert = target_encode_oof(cat3, y_pert, n_splits=4, seed=42)
+    assert abs(float(e_pert.iloc[pos]) - float(e3.iloc[pos])) < 1e-9, \
+        f"row {pos}: its own target leaked into its encoding"
+    others = [j for j in range(n) if j != pos]
+    assert not np.allclose(e_pert.iloc[others].to_numpy(), e3.iloc[others].to_numpy()), \
+        f"row {pos}: its target must still influence OTHER rows of the same category"
+
+print("ALL CHECKS PASSED — C54")
+</script>
+<details class="hint"><summary>Hint 1 — concept</summary><p>Target encoding replaces a category with a statistic of the label &mdash; so the label is now inside a feature. If the mean is computed over <em>all</em> rows, row $i$'s own $y_i$ helps predict $y_i$, and cross-validation reports an accuracy the model will never reproduce in production. Computing each row's encoding from folds that exclude it removes exactly that self-contribution.</p></details>
+<details class="hint"><summary>Hint 2 — approach</summary><p>Allocate the output first: <code>out = pd.Series(np.nan, index=cat_series.index, dtype=float)</code>. Then loop <code>for tr, va in kf.split(np.arange(len(cat_series)))</code>; <code>tr</code> and <code>va</code> are <em>positions</em>, so address rows with <code>.iloc[...]</code>, never <code>.loc[...]</code>.</p></details>
+<details class="hint"><summary>Hint 3 — nearly there</summary><p>Per fold: <code>means = y.iloc[tr].groupby(cat_series.iloc[tr].to_numpy()).mean()</code> and <code>g = float(y.iloc[tr].mean())</code>. Map the validation categories with <code>cat_series.iloc[va].map(means).fillna(g)</code>, and assign the raw values, <code>out.iloc[va] = (...).to_numpy()</code> &mdash; <code>.iloc</code> writes by position, so handing it a NumPy array keeps the two sides lined up no matter what labels the input index carries.</p></details>
+<details class="sol"><summary>Solution C54</summary><pre><code>from sklearn.model_selection import KFold
+
+def target_encode_oof(cat_series, y, n_splits=5, seed=0):
+    cat_series = pd.Series(cat_series)
+    y = pd.Series(y)
+    out = pd.Series(np.nan, index=cat_series.index, dtype=float)
+    kf = KFold(n_splits=n_splits, shuffle=True, random_state=seed)
+    for tr, va in kf.split(np.arange(len(cat_series))):
+        means = y.iloc[tr].groupby(cat_series.iloc[tr].to_numpy()).mean()
+        gmean = float(y.iloc[tr].mean())
+        vals = cat_series.iloc[va].map(means).fillna(gmean)
+        out.iloc[va] = vals.to_numpy()
+    return out</code></pre>
+<p>Walk the first fold by hand: it validates positions <code>[2, 6]</code> and trains on <code>[0, 1, 3, 4, 5, 7]</code>, whose categories/targets are a:(1,0), b:(0,1,0), c:(0). So row 2 (category a) gets $0.5$ and row 6 (category c) gets $0.0$ &mdash; and row 6's own target of $1.0$ never enters. The naive encoding would have given row 2 the value $2/3$, inflated by its own label. The unseen-category fixture shows the fallback: <code>"z"</code> appears once, so whenever its row is in validation no training row carries that category and the fold's mean of $y$ ($1/3$) is used instead of the row's own $7.0$. In production you would fit a <em>full-data</em> mapping on the training set and apply it to test rows; the OOF values are only for building the training matrix.</p></details>
+</div>
+
+<div class="q" id="c55">
+<p><span class="qhead">C55</span> <span class="qmeta">feature engineering &middot; ratios, dates, group stats</span></p>
+<p>Given the transactions frame below, implement <code>engineer(df)</code> returning a <strong>copy</strong> of <code>df</code> with four new columns: <code>amount_log</code> = $\log(1+\text{amount})$ (<code>np.log1p</code>, which is stable for small amounts and maps $0\mapsto0$); <code>amount_per_item</code> = <code>amount / items</code>; <code>is_weekend</code> = a boolean, <code>True</code> when <code>ts</code> falls on Saturday or Sunday; and <code>customer_mean_amount</code> = each customer's mean <code>amount</code>, broadcast back to every one of their rows with a <code>groupby(...).transform</code>. Do not mutate the caller's frame.</p>
+<script type="py-editor" env="mlts">
+# C55 — building features from a transactions table
+# TASK: return df.copy() plus the columns
+#   amount_log            = np.log1p(amount)
+#   amount_per_item       = amount / items
+#   is_weekend            = ts falls on Sat/Sun          (bool)
+#   customer_mean_amount  = per-customer mean amount, broadcast to every row
+def engineer(df):
+    out = df.copy()
+    ...  # YOUR CODE HERE
+
+# --- checks (do not modify) ---
+tx = pd.DataFrame({
+    "txn_id":   [1, 2, 3, 4, 5, 6],
+    "customer": ["A", "B", "A", "C", "B", "A"],
+    "ts":       pd.to_datetime(["2023-01-02", "2023-01-07", "2023-01-08",
+                                "2023-01-09", "2023-01-14", "2023-01-15"]),
+    "amount":   [100.0, 250.0, 40.0, 900.0, 60.0, 10.0],
+    "items":    [2, 5, 3, 9, 3, 1],
+}, index=[101, 102, 103, 104, 105, 106])
+before = tx.copy()
+out = engineer(tx)
+
+assert isinstance(out, pd.DataFrame), "return a DataFrame"
+for c in ("amount_log", "amount_per_item", "is_weekend", "customer_mean_amount"):
+    assert c in out.columns, f"missing column {c}"
+assert list(out.columns)[:5] == list(before.columns), "keep the original columns (and their order) first"
+assert tx.equals(before) and list(tx.columns) == list(before.columns), "do not mutate the input frame"
+assert len(out) == 6 and list(out.index) == [101, 102, 103, 104, 105, 106], \
+    f"row count / index must be unchanged, got {list(out.index)}"
+
+assert np.allclose(out["amount_log"].to_numpy(),
+                   np.array([4.61512051684126, 5.5254529391317835, 3.713572066704308,
+                             6.803505257608338, 4.110873864173311, 2.3978952727983707])), "amount_log wrong"
+assert np.allclose(out["amount_per_item"].to_numpy(),
+                   np.array([50.0, 50.0, 40.0 / 3.0, 100.0, 20.0, 10.0])), "amount_per_item wrong"
+
+assert out["is_weekend"].dtype == bool, f"is_weekend must be boolean, got {out['is_weekend'].dtype}"
+assert out["is_weekend"].tolist() == [False, True, True, False, True, True], \
+    f"is_weekend wrong: {out['is_weekend'].tolist()}"
+
+assert np.allclose(out["customer_mean_amount"].to_numpy(),
+                   np.array([50.0, 155.0, 50.0, 900.0, 155.0, 50.0])), "customer_mean_amount wrong"
+# a single-transaction customer's group mean is just its own amount
+assert abs(float(out.loc[104, "customer_mean_amount"]) - 900.0) < 1e-9, "customer C has one row"
+# the ratio is a true division: 40 / 3 is not 13
+assert abs(float(out.loc[103, "amount_per_item"]) - 40.0 / 3.0) < 1e-9, "amount_per_item must be a float division"
+# log1p is monotone and much flatter than the raw amount
+assert out["amount_log"].is_monotonic_increasing is False
+assert out["amount_log"].max() / out["amount_log"].min() < out["amount"].max() / out["amount"].min()
+
+print("ALL CHECKS PASSED — C55")
+</script>
+<details class="hint"><summary>Hint 1 — concept</summary><p>Three classic families of engineered features appear here: a <em>monotone transform</em> that tames a right-skewed, heavy-tailed variable (log), a <em>ratio</em> that normalises size away (spend per item), and a <em>datetime decomposition</em> plus a <em>group aggregate</em> that gives each row context about the entity it belongs to.</p></details>
+<details class="hint"><summary>Hint 2 — approach</summary><p><code>np.log1p</code> works elementwise on a Series. For the calendar part, the <code>.dt</code> accessor exposes <code>out["ts"].dt.dayofweek</code>, where Monday is 0 and Sunday is 6.</p></details>
+<details class="hint"><summary>Hint 3 — nearly there</summary><p>Weekend is <code>out["ts"].dt.dayofweek &gt;= 5</code>. For the group statistic use <code>out.groupby("customer")["amount"].transform("mean")</code> &mdash; <code>transform</code> returns a Series aligned to the <em>original</em> rows, unlike <code>agg</code>, which would collapse to one row per customer and need a merge.</p></details>
+<details class="sol"><summary>Solution C55</summary><pre><code>def engineer(df):
+    out = df.copy()
+    out["amount_log"] = np.log1p(out["amount"])
+    out["amount_per_item"] = out["amount"] / out["items"]
+    out["is_weekend"] = out["ts"].dt.dayofweek &gt;= 5
+    out["customer_mean_amount"] = out.groupby("customer")["amount"].transform("mean")
+    return out</code></pre>
+<p><code>df.copy()</code> is what keeps the caller's frame untouched &mdash; assigning columns to <code>df</code> directly would mutate it in place. <code>log1p</code> compresses the 10-to-900 range into 2.4-to-6.8, so a single big-ticket transaction no longer dominates a linear model's loss. <code>transform("mean")</code> is the idiom for "group statistic, one value per original row": customer A's three transactions (100, 40, 10) all receive 50, while single-transaction customer C receives its own 900 &mdash; a reminder that group features computed on the full data are themselves a mild leakage channel when the group statistic involves the target rather than, as here, a plain feature.</p></details>
+</div>
+
 <hr>
-<div style="text-align:center; font-size:12px; color: var(--muted); margin: 14px 0;">150 problems &middot; answers computed and independently verified &middot; companion to the ML notes.</div>
+<div style="text-align:center; font-size:12px; color: var(--muted); margin: 14px 0;">183 problems &middot; answers computed and independently verified &middot; companion to the ML notes.</div>
 </main>
 </body>
 </html>
