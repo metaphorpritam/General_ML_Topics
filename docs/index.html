@@ -2840,7 +2840,7 @@ $$\rho_{\text{slow}} \;=\; 1 - \frac{2\lambda_{\min}}{\lambda_{\min}+\lambda_{\m
 <p>The interactive surface below is the same family: $L = a w_1^2 + b w_2^2$ with $a=1$ and $b$ set by the conditioning slider. Try three things in order - push $\log_{10}\eta$ up until plain GD zig-zags and then diverges (it should give up just past $\eta = 1/b$); raise the conditioning to $20$ and watch how many steps GD needs; then switch the optimizer picker to momentum and to Adam at the <em>same</em> $\eta$ and see which of them still make progress.</p>
 
 <div class="widget" id="lr_surface">
-<h4>Interactive lab — gradient descent on a loss surface</h4>
+<h4>Interactive lab - gradient descent on a loss surface</h4>
 <div class="wctl">
   <label>optimizer <select id="lrs_opt">
     <option value="gd">plain GD</option><option value="mom">momentum (&beta;=0.9)</option>
@@ -3456,7 +3456,7 @@ $$\boxed{F_\beta = (1+\beta^2)\,\frac{P \cdot R}{\beta^2 \cdot P + R}}$$
 
 <p>Try sweeping the threshold yourself and watch the confusion counts, $P/R/F_1$, and the ROC operating point move together:</p>
 <div class="widget" id="roc_explorer">
-<h4>Interactive lab — decision threshold &amp; the ROC curve</h4>
+<h4>Interactive lab - decision threshold &amp; the ROC curve</h4>
 <div class="wctl">
   <label>threshold t: <input type="range" id="roc_t" min="0" max="1" step="0.01" value="0.5"> <span id="roc_t_v">0.5</span></label>
   <label>class separation: <input type="range" id="roc_sep" min="0.05" max="0.6" step="0.05" value="0.3"> <span id="roc_sep_v">0.3</span></label>
@@ -3465,7 +3465,7 @@ $$\boxed{F_\beta = (1+\beta^2)\,\frac{P \cdot R}{\beta^2 \cdot P + R}}$$
 </div>
 <canvas id="roc_cv" class="wcanvas" width="640" height="270"></canvas>
 <div class="wctl">TPR (recall) <span class="kpi" id="roc_tpr">–</span> &middot; FPR <span class="kpi" id="roc_fpr">–</span> &middot; precision <span class="kpi" id="roc_prec">–</span> &middot; F1 <span class="kpi" id="roc_f1">–</span> &middot; AUC <span class="kpi" id="roc_auc">–</span></div>
-<div class="wnote">Left: score densities of the two classes with the threshold line — everything right of $t$ is predicted positive. Right: the ROC curve traced by sweeping $t$; the dot is the current operating point. Note how precision (not TPR/FPR) moves when you change prevalence: ROC is prevalence-free, precision is not.</div>
+<div class="wnote">Left: score densities of the two classes with the threshold line - everything right of $t$ is predicted positive. Right: the ROC curve traced by sweeping $t$; the dot is the current operating point. Note how precision (not TPR/FPR) moves when you change prevalence: ROC is prevalence-free, precision is not.</div>
 </div>
 <script>
 (function(){
@@ -9336,7 +9336,7 @@ def softmax_jacobian(p):          # p (K,) -&gt; (K x K) = diag(p) - p p^T; rows
 <p>The playground below plots any of these functions together with its derivative, and reports both at a probe point. Slide the probe out to $z = \pm 4$ on the sigmoid and read $\theta' = 0.0177$; do the same on ReLU and read $1$ or $0$. That ratio - roughly $57\times$ on the positive side - is the entire empirical case for ReLU.</p>
 
 <div class="widget" id="act_playground">
-<h4>Interactive lab — activation function playground</h4>
+<h4>Interactive lab - activation function playground</h4>
 <div class="wctl">
   <label>activation <select id="act_fn">
     <option value="sigmoid">sigmoid</option><option value="tanh">tanh</option>
@@ -9361,7 +9361,7 @@ def softmax_jacobian(p):          # p (K,) -&gt; (K x K) = diag(p) - p p^T; rows
     gelu: x => 0.5*x*(1+Math.tanh(Math.sqrt(2/Math.PI)*(x+0.044715*x*x*x))),
     softplus: x => x > 30 ? x : Math.log(1+Math.exp(x)),
   };
-  const dnum = (f, x) => (f(x+1e-4) - f(x-1e-4)) / 2e-4;  // central difference — exact enough at plot scale
+  const dnum = (f, x) => (f(x+1e-4) - f(x-1e-4)) / 2e-4;  // central difference - exact enough at plot scale
   function render(){
     const fn = document.getElementById('act_fn').value, f = F[fn];
     const x0 = W.val('act_x0', 1);
@@ -10128,7 +10128,7 @@ inputs maps to one output. Right: the cumulative cost of valid padding.</div>
 $K_{\text{eff}} &gt; N+2P$ and watch the layer become illegal.</p>
 
 <div class="widget" id="conv_explorer">
-<h4>Interactive lab — convolution arithmetic explorer</h4>
+<h4>Interactive lab - convolution arithmetic explorer</h4>
 <div class="wctl">
   <label>input N: <input type="range" id="cx_n" min="3" max="12" step="1" value="6"> <span id="cx_n_v">6</span></label>
   <label>kernel K: <input type="range" id="cx_k" min="1" max="7" step="1" value="3"> <span id="cx_k_v">3</span></label>
@@ -10885,7 +10885,7 @@ Jacobian, so training stalls.</p>
 see the lower-triangular pattern a decoder is forced into.</p>
 
 <div class="widget" id="attn_viz">
-<h4>Interactive lab — attention weights</h4>
+<h4>Interactive lab - attention weights</h4>
 <div class="wctl">
   <label>scaling <select id="at_scale">
     <option value="scaled" selected>QK&#7488;/&radic;d&#8342;</option>
@@ -10897,7 +10897,7 @@ see the lower-triangular pattern a decoder is forced into.</p>
 </div>
 <canvas id="at_cv" class="wcanvas" width="620" height="260"></canvas>
 <div class="wctl">row sum <span class="kpi" id="at_sum">–</span> &middot; row entropy <span class="kpi" id="at_ent">–</span> bits &middot; top key <span class="kpi" id="at_top">–</span></div>
-<div class="wnote">Tokens embedded in $d_k=4$; scores $=QK^\top$ (here $Q=K=E$, so the diagonal is strong), then row-softmax after dividing by $\tau\;(\times\sqrt{d_k}$ if scaled). Drop &tau; to sharpen toward hard attention; enable the causal mask to see the decoder's lower-triangular pattern. Unscaled scores saturate softmax — exactly why the $\sqrt{d_k}$ divisor exists.</div>
+<div class="wnote">Tokens embedded in $d_k=4$; scores $=QK^\top$ (here $Q=K=E$, so the diagonal is strong), then row-softmax after dividing by $\tau\;(\times\sqrt{d_k}$ if scaled). Drop &tau; to sharpen toward hard attention; enable the causal mask to see the decoder's lower-triangular pattern. Unscaled scores saturate softmax - exactly why the $\sqrt{d_k}$ divisor exists.</div>
 </div>
 <script>
 (function(){
@@ -12948,7 +12948,7 @@ assign/update and watch the WCSS readout fall, then change the seed to land in a
 optimum with the same $k$.</p>
 
 <div class="widget" id="kmeans_stepper">
-<h4>Interactive lab — k-means, one step at a time</h4>
+<h4>Interactive lab - k-means, one step at a time</h4>
 <div class="wctl">
   <label>k: <input type="range" id="km_k" min="2" max="5" step="1" value="3"> <span id="km_k_v">3</span></label>
   <label>init seed: <input type="range" id="km_seed" min="1" max="9" step="1" value="1"> <span id="km_seed_v">1</span></label>
@@ -12958,11 +12958,11 @@ optimum with the same $k$.</p>
 </div>
 <canvas id="km_cv" class="wcanvas" width="560" height="360"></canvas>
 <div class="wctl">iteration <span class="kpi" id="km_iter">–</span> &middot; next phase <span class="kpi" id="km_phase">–</span> &middot; WCSS <span class="kpi" id="km_wcss">–</span> &middot; <span class="kpi" id="km_conv"></span></div>
-<div class="wnote">One "step" alternates <b>assign</b> (each point &rarr; nearest centroid; lines show assignments) and <b>update</b> (centroid &rarr; mean of its points; the X marks jump). WCSS $=\sum_i \lVert x_i-\mu_{c(i)}\rVert^2$ never increases — watch it fall until no assignment changes. Try seed 7 with k=3: a poor initialization converging to a worse local optimum.</div>
+<div class="wnote">One "step" alternates <b>assign</b> (each point &rarr; nearest centroid; lines show assignments) and <b>update</b> (centroid &rarr; mean of its points; the X marks jump). WCSS $=\sum_i \lVert x_i-\mu_{c(i)}\rVert^2$ never increases - watch it fall until no assignment changes. Try seed 7 with k=3: a poor initialization converging to a worse local optimum.</div>
 </div>
 <script>
 (function(){
-  // deterministic data: 3 blobs via seeded LCG (Math.imul keeps 32-bit — the >>>0 trick)
+  // deterministic data: 3 blobs via seeded LCG (Math.imul keeps 32-bit - the >>>0 trick)
   let sd = 42;
   const rnd = () => { sd = (Math.imul(1103515245, sd) + 12345) >>> 0; return sd / 4294967296; };
   const gauss = () => { const u = Math.max(rnd(),1e-9), v = rnd();
@@ -13031,7 +13031,7 @@ optimum with the same $k$.</p>
       ctx.moveTo(cx+7,cy-7); ctx.lineTo(cx-7,cy+7); ctx.stroke(); ctx.lineWidth = 1;
     });
     W.set('km_iter', String(iter));
-    W.set('km_phase', converged ? '—' : phase);
+    W.set('km_phase', converged ? '-' : phase);
     W.set('km_wcss', W.fmt(wcss(), 2));
     W.set('km_conv', converged ? 'CONVERGED (assignments stable)' : '');
   }
