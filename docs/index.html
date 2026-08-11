@@ -15963,7 +15963,8 @@ minimum RMSE to pass the test cases."</em></li>
 So: <b>§22.1 = Q1</b> (stack, join, derive, aggregate, reshape), <b>§22.2 = Q2</b> (clean),
 <b>§22.5 = Q3</b> (model until the RMSE threshold falls), <b>§22.6</b> = the cheat sheets to skim the
 morning of the test, <b>§22.7</b> = the operating procedure for the two hours themselves. Practice
-drills are in <b>§22.8</b>.
+drills are in <b>§22.8</b>, and <b>§22.9</b> is the views-vs-copies reference - <code>copy()</code>,
+deep copies and Copy-on-Write - for when a frame mutates behind your back.
 </div>
 
 <div class="defn">
@@ -21981,6 +21982,323 @@ correct notebook is not knowledge of pandas - it is three habits that cost one l
 after every fill, and <code>dtypes</code> before every encoder. Under a two-hour clock those three
 lines are the cheapest marks on the paper (§22.6.7).</p>
 </div></details>
+
+<h3>22.9 &nbsp; Views vs copies: <code>copy()</code> and deep copies in numpy and pandas</h3>
+
+<p>Two hours is not enough time to debug a mutation you cannot see. Aliasing bugs come in exactly two flavours,
+and both are timed-exam poison. Failure mode one: you take a slice or a shallow copy, write into it, and silently
+corrupt the parent frame you were keeping for the next subpart - no error, no warning, just a cleaning step that
+un-cleans itself three cells later. Failure mode two is the inverse and is nastier: a
+<code>SettingWithCopyWarning</code> you have trained yourself to scroll past is sometimes the runtime telling you
+that <b>your write never happened</b> - the filtered rows you "fixed" are still broken, and you find out when the
+grader's test case does. Everything below, run on pandas 2.3.3 <!-- prov: s22_copies.json:pandas_version --> and
+numpy 2.5.2 <!-- prov: s22_copies.json:numpy_version -->, exists to make both failures impossible under a clock.</p>
+
+<p>One vocabulary point first, because the open-documentation policy will tempt you to search for it: <b>there is
+no function literally called <code>deep_copy()</code></b>. The three real spellings are numpy's
+<code>arr.copy()</code>, pandas' <code>df.copy(deep=True)</code> (and <code>deep=True</code> is already the
+default, so <code>df.copy()</code> means the same thing), and the standard library's
+<code>copy.deepcopy(obj)</code> - and they do three <em>different</em> amounts of copying. Knowing which one you
+are holding is the entire game.</p>
+
+<h4>22.9.1 &nbsp; numpy: slices are views, fancy indexing is a copy</h4>
+
+<p>The numpy rule fits on one line: <b>basic slicing (<code>arr[1:4]</code>, <code>arr[:, 0]</code>) returns a
+view; fancy indexing (a list of indices) and boolean-mask indexing return a copy.</b> A view is a new array object
+wrapped around the <em>same</em> buffer - new shape and strides, zero bytes copied - so writing through it writes
+through to the parent: after <code>s = arr[1:4]; s[0] = 99.0</code> the parent's element reads 99.0
+<!-- prov: s22_copies.json:slice_mutation_parent_val -->. Copy a slice first - <code>c = arr[2:5].copy();
+c[0] = 123.0</code> - and the parent element still reads 2.0
+<!-- prov: s22_copies.json:copy_mutation_parent_val -->. Fancy and mask selections share
+no memory with the source (<code>np.may_share_memory</code> is false for both
+<!-- prov: s22_copies.json:fancy_may_share_memory --> <!-- prov: s22_copies.json:mask_may_share_memory -->), which
+is why you can write into them freely - and also why the parent never receives the write you thought you made.</p>
+
+<p>You have two diagnostics, and only one is trustworthy. <code>arr.base</code> points at the array whose buffer a
+view borrows - the parent for a slice <!-- prov: s22_copies.json:slice_base_is_arr -->, <code>None</code> for a
+fresh <code>.copy()</code> <!-- prov: s22_copies.json:copy_base_is_none -->. But <b>"base is None" is not a
+reliable copy test</b>: a reshape that is forced to copy (transpose first, then flatten) shares no memory with the
+source <!-- prov: s22_copies.json:noncontig_reshape_may_share_memory --> yet its <code>.base</code> is still not
+<code>None</code> <!-- prov: s22_copies.json:noncontig_reshape_base_is_none -->, because it points at the
+intermediate contiguous buffer numpy had to materialise. The trustworthy diagnostic is
+<code>np.may_share_memory(a, b)</code> (or the exact <code>np.shares_memory</code>). The lab also settles the classic pairs:
+<code>reshape</code> and <code>.T</code> on contiguous data are views <!-- prov: s22_copies.json:reshape_may_share_memory -->
+<!-- prov: s22_copies.json:transpose_may_share_memory -->, <code>ravel()</code> stays a view
+<!-- prov: s22_copies.json:ravel_may_share_memory --> where <code>flatten()</code> always copies
+<!-- prov: s22_copies.json:flatten_may_share_memory -->, and <code>np.asarray</code> hands an existing array straight back
+<!-- prov: s22_copies.json:asarray_is_same --> where <code>np.array</code> copies it <!-- prov: s22_copies.json:nparray_is_same -->.</p>
+
+<details class="code"><summary>Code - views, copies, and the two diagnostics (numpy)</summary>
+<pre><code>import numpy as np
+
+arr = np.arange(6, dtype=float)            # [0. 1. 2. 3. 4. 5.]
+s = arr[1:4]                               # basic slice: a VIEW
+s[0] = 99.0
+arr[1]                                     # 99.0  - the parent changed
+s.base is arr                              # True
+np.may_share_memory(arr, s)                # True
+
+c = arr[2:5].copy()                        # slice, then copy: isolated
+c[0] = 123.0
+arr[2]                                     # 2.0   - untouched
+c.base is None                             # True
+
+fancy = arr[[0, 2, 4]]                     # fancy indexing: a COPY
+np.may_share_memory(arr, fancy)            # False
+mask = arr[arr &gt; 2.0]                      # boolean mask: a COPY
+np.may_share_memory(arr, mask)             # False
+
+a = np.arange(12)
+r = a.reshape(3, 4)                        # reshape of contiguous data: view
+r.base is a                                # True
+t = r.T                                    # transpose: view (only strides change)
+np.may_share_memory(a, t)                  # True
+
+z = a.reshape(3, 4).T.reshape(-1)          # non-contiguous, so reshape MUST copy
+np.may_share_memory(a, z)                  # False - genuinely a copy ...
+z.base is None                             # False - ... yet base is NOT None
+
+np.may_share_memory(a, a.ravel())          # True  - view while contiguous
+np.may_share_memory(a, a.flatten())        # False - flatten always copies
+
+i64 = np.array([0, 1, 2], dtype=np.int64)
+v32 = i64.view(np.int32)                   # .view: reinterpret the SAME bytes
+v32.shape                                  # (6,)
+v32.tolist()                               # [0, 0, 1, 0, 2, 0]
+np.shares_memory(i64, v32)                 # True
+
+np.asarray(arr) is arr                     # True  - no copy for an existing array
+np.array(arr) is arr                       # False - np.array copies by default
+
+np.zeros((1000, 1000)).nbytes              # 8000000 - each accidental copy costs 8 MB</code></pre>
+<p class="wnote">Type <code>np.may_share_memory(a, b)</code> whenever you are unsure - it never returns a false
+<code>False</code>, so a <code>False</code> is proof you hold a genuine copy. A <code>True</code> is only "maybe":
+it is a fast bounds-overlap check, and interleaved slices of one buffer such as <code>x[::2]</code> and
+<code>x[1::2]</code> read <code>True</code> while sharing no element - when it matters, settle a <code>True</code>
+with the exact <code>np.shares_memory</code>. Either beats <code>base is None</code>, which can call a genuine
+copy a view. The <code>.view(np.int32)</code> line is the purest picture of what a view is: the same
+bytes reread on this little-endian machine as shape (6,) <!-- prov: s22_copies.json:view_int32_shape --> with values
+[0, 0, 1, 0, 2, 0] <!-- prov: s22_copies.json:view_int32_values -->, still sharing memory with the source
+<!-- prov: s22_copies.json:view_int32_shares_memory -->. The last line prices the alternative: a 1000x1000 float64
+<!-- prov: s22_copies.json:nbytes_example_shape --> copy is 8000000 bytes <!-- prov: s22_copies.json:nbytes_example -->, 8.0 MB
+<!-- prov: s22_copies.json:nbytes_example_mb --> - views are free, copies are not.</p>
+</details>
+
+<h4>22.9.2 &nbsp; What "deep" means: object dtype and copy.deepcopy</h4>
+
+<p><code>arr.copy()</code> copies <b>the buffer</b>. For a numeric dtype the buffer <em>is</em> the data, so the
+copy is as deep as deep gets. For <code>object</code> dtype the buffer holds pointers to Python objects, so
+<code>.copy()</code> duplicates the pointers and not the objects: after copying an object array of lists, the
+copy's first cell <em>is</em> the original's first cell
+<!-- prov: s22_copies.json:object_copy_same_inner_object -->, and appending through the copy leaves the original
+reading [1, 2, 99] <!-- prov: s22_copies.json:object_copy_leak_val -->. On a raw numpy object array the stdlib fix
+works as advertised: <code>copy.deepcopy</code> isolates, and the original stays [1, 2]
+<!-- prov: s22_copies.json:object_deepcopy_isolated_val -->.</p>
+
+<p>Pandas inherits the trap and adds a twist. On a frame with dtypes <code>int64, float64, object</code>
+<!-- prov: s22_copies.json:pd_fixture_dtypes -->, <code>df.copy()</code> - deep by default - genuinely isolates
+the numeric columns (write 999 into the copy <!-- prov: s22_copies.json:pd_deepcopy_copy_val -->, the parent still
+reads 1 <!-- prov: s22_copies.json:pd_deepcopy_parent_val -->), but the object column's cells are the same Python
+lists <!-- prov: s22_copies.json:pd_deepcopy_object_same_inner -->, and mutating one through the copy leaves the
+parent's cell at [1, 99] <!-- prov: s22_copies.json:pd_deepcopy_object_leak -->. The twist: reaching for
+<code>copy.deepcopy(df)</code> does <b>not</b> fix it <!-- prov: s22_copies.json:pd_module_deepcopy_isolates -->,
+because pandas overrides <code>__deepcopy__</code> to simply call <code>self.copy(deep=True)</code> - the parent
+cell still ends up [1, 99] <!-- prov: s22_copies.json:pd_module_deepcopy_orig_after -->. The working fix is
+element-wise: deep-copy the one object column yourself, after which mutating the copy leaves the parent cell at
+[1] <!-- prov: s22_copies.json:pd_object_fix_isolated_val -->.</p>
+
+<details class="code"><summary>Code - how deep is deep: object dtype and the deepcopy asymmetry (pandas / numpy)</summary>
+<pre><code>import copy
+import numpy as np
+import pandas as pd
+
+o = np.empty(2, dtype=object); o[:] = [[1, 2], [3, 4]]
+oc = o.copy()                        # copies the POINTERS, not the lists
+oc[0] is o[0]                        # True - same inner list object
+oc[0].append(99)
+o[0]                                 # [1, 2, 99] - leaked through the "copy"
+
+o2 = np.empty(2, dtype=object); o2[:] = [[1, 2], [3, 4]]
+od = copy.deepcopy(o2)               # raw object ARRAY: deepcopy DOES isolate
+od[0].append(99)
+o2[0]                                # [1, 2] - untouched
+
+df = pd.DataFrame({"a": [1, 2, 3],
+                   "b": [1.5, 2.5, 3.5],
+                   "c": [[1], [2], [3]]})
+list(df.dtypes.astype(str))          # ['int64', 'float64', 'object']
+
+d = df.copy()                        # deep=True is the default
+d.loc[0, "a"] = 999
+(int(df.loc[0, "a"]), int(d.loc[0, "a"]))  # (1, 999) - numeric buffers really copied
+d.loc[0, "c"] is df.loc[0, "c"]      # True     - but the SAME inner list
+d.loc[0, "c"].append(99)
+df.loc[0, "c"]                       # [1, 99]  - leaked through deep=True
+
+df2 = pd.DataFrame({"c": [[1], [2], [3]]})
+dd = copy.deepcopy(df2)              # DataFrame overrides __deepcopy__ as
+dd.loc[0, "c"].append(99)            # plain self.copy(deep=True) ...
+df2.loc[0, "c"]                      # [1, 99]  - ... so it STILL leaks
+
+df3 = pd.DataFrame({"c": [[1], [2], [3]]})
+iso = df3.copy()
+iso["c"] = [copy.deepcopy(v) for v in iso["c"]]   # element-wise: the real fix
+iso.loc[0, "c"].append(99)
+df3.loc[0, "c"]                      # [1] - finally isolated</code></pre>
+<p class="wnote">The hierarchy to memorise: for numeric columns <code>df.copy()</code> is fully deep, and
+<code>copy.deepcopy</code> on top of it is pure waste. Object columns holding mutable things - lists, dicts, the
+output of a group-by aggregated with <code>.agg(list)</code> (§22.1.5) - need the element-wise
+<code>copy.deepcopy</code> loop, because both <code>df.copy(deep=True)</code> and <code>copy.deepcopy(df)</code>
+stop at the pointers.</p>
+</details>
+
+<h4>22.9.3 &nbsp; pandas: df.copy(), chained assignment, and Copy-on-Write</h4>
+
+<p>Under classic pandas 2.x semantics (the copy-on-write option reads false out of the box
+<!-- prov: s22_copies.json:precow_copy_on_write_option -->), <code>df.copy(deep=False)</code> gives you a new
+frame object over the <em>same</em> column buffers <!-- prov: s22_copies.json:pd_shallow_shares_memory -->, and
+writing through it mutates the parent to 999 <!-- prov: s22_copies.json:pd_shallow_parent_val --> with no warning
+of any category - the warning list captured during the write is empty
+<!-- prov: s22_copies.json:pd_shallow_write_warning_categories -->. Meanwhile a plain column reference
+<code>s = df["a"]</code> also shares memory <!-- prov: s22_copies.json:pd_col_shares_memory -->, and on this
+mixed-dtype frame writing into <em>it</em> does raise <code>SettingWithCopyWarning</code>
+<!-- prov: s22_copies.json:pd_col_write_warning_categories --> yet the parent changes to 777 anyway
+<!-- prov: s22_copies.json:pd_col_mutation_parent_val -->. The warning is block-structure dependent, not a
+promise: pull the same column out of a single-dtype frame and the identical write lands just the same - the
+parent reads 777 <!-- prov: s22_copies.json:pd_col_singleblock_parent_val --> - with no warning of any category
+<!-- prov: s22_copies.json:pd_col_singleblock_write_warning_categories -->. Sit with that pair for a second: the
+warning neither blocks a write nor fires on every aliased write. It is a heuristic, not a guarantee - which is
+why "always ignore it" and "always trust it" are both losing strategies.</p>
+
+<p>The chained-assignment trap is the case where the warning is telling the truth.
+<code>df[df["a"] &gt; 1]["b"] = -1.0</code> warns with <code>SettingWithCopyWarning</code>
+<!-- prov: s22_copies.json:chained_warning_categories --> and the write lands on a temporary made by the first
+bracket: the parent cell still reads 3.5 <!-- prov: s22_copies.json:chained_orig_val -->. The fix is one indexer
+doing both jobs - <code>df.loc[df["a"] &gt; 1, "b"] = -1.0</code> - after which the cell reads -1.0
+<!-- prov: s22_copies.json:loc_assign_val -->.</p>
+
+<p><b>Copy-on-Write</b> (opt-in in pandas 2.x via <code>pd.options.mode.copy_on_write = True</code>, the default
+behavior in pandas 3.x) replaces the whole heuristic mess with one sentence: <b>every operation behaves like a
+copy, and you pay for the copy only when you write.</b> A shallow copy keeps sharing memory before any write
+<!-- prov: s22_copies.json:cow_shallow_shares_before_write -->; the first write through it triggers the real copy, so the
+copy reads 999 <!-- prov: s22_copies.json:cow_shallow_copy_val --> while the parent still reads 1
+<!-- prov: s22_copies.json:cow_shallow_parent_val -->. A plain column reference is just as safe - writing 777 into it
+<!-- prov: s22_copies.json:cow_ref_series_val --> warns about nothing <!-- prov: s22_copies.json:cow_ref_write_warning_categories -->
+and leaves the parent at 1 <!-- prov: s22_copies.json:cow_ref_parent_val -->, fully isolated
+<!-- prov: s22_copies.json:cow_ref_isolated -->. Chained assignment stops being a maybe: it warns with
+<code>ChainedAssignmentError</code> <!-- prov: s22_copies.json:cow_chained_warning_categories --> (a warning category, not a
+raised exception) and the statement is a guaranteed no-op - the parent cell stays 3.5
+<!-- prov: s22_copies.json:cow_chained_orig_val --> and the parent-changed check reads false
+<!-- prov: s22_copies.json:cow_chained_parent_changed -->. One surprise to not get wrong: <code>df.copy(deep=True)</code> stays
+an <b>eager</b> copy even under CoW - it shares no memory with the parent before any write has happened
+<!-- prov: s22_copies.json:cow_deepcopy_shares_before_write -->, and after writing into the copy the parent still reads 1
+<!-- prov: s22_copies.json:cow_deepcopy_isolated_after_write -->. The lazy, pay-on-write behavior belongs to
+<code>copy(deep=False)</code> and ordinary method chaining, not to <code>deep=True</code>.</p>
+
+<details class="code"><summary>Code - classic aliasing traps, then the same lines under Copy-on-Write (pandas / numpy)</summary>
+<pre><code>import numpy as np
+import pandas as pd
+pd.options.mode.copy_on_write        # False - classic 2.x semantics
+
+df = pd.DataFrame({"a": [1, 2, 3], "b": [1.5, 2.5, 3.5]})
+sc = df.copy(deep=False)
+np.may_share_memory(df["a"].to_numpy(), sc["a"].to_numpy())   # True
+sc.loc[0, "a"] = 999                 # no warning of ANY kind
+df.loc[0, "a"]                       # 999  - parent mutated in silence
+
+dfa = pd.DataFrame({"a": [1, 2, 3], "b": [1.5, 2.5, 3.5]})
+s = dfa["a"]                         # a plain column reference aliases too
+s.iloc[0] = 777                      # SettingWithCopyWarning (mixed-dtype frame)
+dfa.loc[0, "a"]                      # 777  - warned, but the write LANDED
+
+dfb = pd.DataFrame({"a": [1, 2, 3], "b": [1.5, 2.5, 3.5]})
+dfb[dfb["a"] &gt; 1]["b"] = -1.0        # SettingWithCopyWarning
+dfb.loc[2, "b"]                      # 3.5  - warned, and the write NEVER landed
+dfb.loc[dfb["a"] &gt; 1, "b"] = -1.0    # the one-indexer fix
+dfb.loc[2, "b"]                      # -1.0
+
+# ---- fresh interpreter: the switch must be set before any frame exists ----
+pd.options.mode.copy_on_write = True
+
+df = pd.DataFrame({"a": [1, 2, 3], "b": [1.5, 2.5, 3.5]})
+sc = df.copy(deep=False)
+np.may_share_memory(df["a"].to_numpy(), sc["a"].to_numpy())   # True - shared until a write
+sc.loc[0, "a"] = 999
+(int(sc.loc[0, "a"]), int(df.loc[0, "a"])) # (999, 1) - the write paid for the copy
+
+s = df["a"]
+s.iloc[0] = 777                      # no warning at all
+(int(s.iloc[0]), int(df.loc[0, "a"]))      # (777, 1) - fully isolated
+
+df[df["a"] &gt; 1]["b"] = -1.0          # warns: ChainedAssignmentError
+df.loc[2, "b"]                       # 3.5  - a guaranteed silent no-op
+
+dc = df.copy()                       # deep=True: EAGER even under CoW
+np.may_share_memory(df["a"].to_numpy(), dc["a"].to_numpy())   # False - before any write
+dc.loc[0, "a"] = 999
+df.loc[0, "a"]                       # 1</code></pre>
+<p class="wnote">The Copy-on-Write half of this lab ran in a fresh child process with the option set immediately after
+import, before any frame existed - confirmed active <!-- prov: s22_copies.json:cow_enabled --> and successful
+<!-- prov: s22_copies.json:cow_child_ok -->. Under CoW every line either behaves like a copy or warns loudly and does
+nothing; under classic semantics the same lines silently mutate, warn-and-mutate, or warn-and-discard. If the exam
+environment lets you, turn CoW on in cell 1 and never think about this again.</p>
+</details>
+
+<h4>22.9.4 &nbsp; The decision guide</h4>
+
+<div class="scrollx">
+<table>
+<caption>Copy or not: the exam decision table</caption>
+<thead><tr><th>Situation</th><th>What to type</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td>About to mutate a slice of an array you also keep</td>
+<td>slice, then <code>.copy()</code>: <code>sub = arr[i:j].copy()</code></td>
+<td>basic slices are views - the write propagates to the parent (99.0 in the lab
+<!-- prov: s22_copies.json:slice_mutation_parent_val -->); one <code>.copy()</code> detaches it
+<!-- prov: s22_copies.json:copy_base_is_none --></td></tr>
+<tr><td>Selected rows with a boolean mask and plan to write into the result</td>
+<td><code>sel = df[mask].copy()</code></td>
+<td>the selection is already a copy in numpy <!-- prov: s22_copies.json:mask_may_share_memory -->, but in classic
+pandas the explicit <code>.copy()</code> is what keeps <code>SettingWithCopyWarning</code> off every later write
+into <code>sel</code></td></tr>
+<tr><td>Handing a frame to a function that mutates its argument</td>
+<td><code>f(df.copy())</code></td>
+<td>deep by default: numeric buffers fully isolated (parent kept 1 while the copy took 999
+<!-- prov: s22_copies.json:pd_deepcopy_parent_val --> <!-- prov: s22_copies.json:pd_deepcopy_copy_val -->) - but
+see the object-dtype row</td></tr>
+<tr><td>Read-only derived frame, memory tight</td>
+<td>no copy at all - use views, or rely on CoW</td>
+<td>a 1000x1000 float64 copy costs 8.0 MB <!-- prov: s22_copies.json:nbytes_example_mb -->; under CoW the derived
+frame shares memory until you write <!-- prov: s22_copies.json:cow_shallow_shares_before_write --> and isolates
+itself if you ever do</td></tr>
+<tr><td>Object-dtype cells holding lists you will mutate</td>
+<td>element-wise <code>copy.deepcopy</code> of that column</td>
+<td><code>df.copy(deep=True)</code> and <code>copy.deepcopy(df)</code> both leak the inner lists ([1, 99]
+<!-- prov: s22_copies.json:pd_deepcopy_object_leak -->); only the element-wise loop isolates ([1]
+<!-- prov: s22_copies.json:pd_object_fix_isolated_val -->)</td></tr>
+<tr><td>Silence a <code>SettingWithCopyWarning</code></td>
+<td>never - rewrite the statement as one <code>df.loc[mask, col] = value</code></td>
+<td>the warning can mean the write was discarded (parent stayed 3.5
+<!-- prov: s22_copies.json:chained_orig_val -->) or that it landed anyway (777
+<!-- prov: s22_copies.json:pd_col_mutation_parent_val -->); the single-<code>.loc</code> rewrite is correct in
+both worlds</td></tr>
+<tr><td>Need the column as a numpy array, without aliasing surprises</td>
+<td><code>df[col].to_numpy(copy=True)</code></td>
+<td>for a numpy-dtype column the default export is a view of the column buffer
+<!-- prov: s22_copies.json:to_numpy_series_default_shares -->; <code>copy=True</code> detaches it
+<!-- prov: s22_copies.json:to_numpy_series_copy_true_shares --></td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="note"><b>Exam habits.</b> When you are not sure what you are holding, spend ten seconds typing the two
+diagnostics: <code>np.may_share_memory(a, b)</code> (the reliable one) and <code>arr.base is not None</code>
+(suggestive, but it can read as a view even for a genuine copy
+<!-- prov: s22_copies.json:noncontig_reshape_base_is_none -->). Always <code>.copy()</code> the result of a
+boolean-mask selection you intend to write into - it costs one word and buys you out of the entire warning
+economy. And write every conditional update as a single <code>df.loc[mask, col] = value</code>, never as
+bracket-then-bracket: it is the one spelling that is correct under classic semantics, under Copy-on-Write, and in
+whatever pandas the grading machine happens to run.</div>
 
 <hr>
 <div class="small" style="text-align:center;">A self-contained interactive textbook. All figures and numerical examples are programmatically generated and verified.</div>
