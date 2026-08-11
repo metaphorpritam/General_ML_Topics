@@ -14994,7 +14994,7 @@ relations, mostly because point $3$ and point $4$ are each in the wrong group.</
 </div></details>
 
 
-<h2 id="s21">21 &nbsp; Decision Playbook &amp; Exam Cheat Sheet</h2>
+<h2 id="s21">21 &nbsp; Decision Flowchart</h2>
 
 <p><a href="#s20">§20</a> closed the last piece of new material — how to tell whether a clustering is
 any good — and with it the technical content of these notes.
@@ -15940,13 +15940,13 @@ library comparison, derived in §13); the clustering lecture deck slide 77 (clus
 against §5, §7, §9, §10, §11, §12, §13, §14, §18, §20.</p>
 
 
-<h2 id="s22">22 &nbsp; The Coding Test: pandas &amp; Modelling Drills (Timed Test Format)</h2>
+<h2 id="s22">22 &nbsp; Coding Documentation: Pandas and Modelling Drills</h2>
 
 <p><a href="#s21">§21</a> ends with a routing question — <em>which model do I reach for?</em> — and a
 template pipeline you should be able to type from memory. This section is the other half of that
 sentence: the two hours in front of a laptop where the marks are actually awarded, and where nobody
 asks you to derive anything. It is built entirely from one source, a Jupyter notebook the user wrote
-for themselves — <em>Timed Data-Science Test — Python Reference Kit</em>, 75 cells, 45 of them code — restructured for the page and, crucially,
+for themselves — <em>Data-Science Class Exam — Python Reference Kit</em>, 75 cells, 45 of them code — restructured for the page and, crucially,
 <b>re-executed</b>. Nothing conceptual is re-derived here; every model named links back to the section
 that derives it.</p>
 
@@ -15965,6 +15965,41 @@ So: <b>§22.1 = Q1</b> (stack, join, derive, aggregate, reshape), <b>§22.2 = Q2
 morning of the test, <b>§22.7</b> = the operating procedure for the two hours themselves. Practice
 drills are in <b>§22.8</b>.
 </div>
+
+<div class="defn">
+<b>The same test, one sitting later — a first-hand report.</b> A second, independent account of the
+same recruitment test describes the identical
+three-part shape on a different dataset, and adds five facts the quote above does not carry:
+<ul>
+<li><b>The data is a cab aggregator in four tables</b> — a <em>customer master</em>, a
+<em>driver master</em>, a <em>vehicle table</em> and a <em>ride table</em>, joined on their keys,
+rather than one table in four fragments. Part 1 is <em>join the four, aggregate (a driver's average
+rating), convert the date columns and add display columns (<code>12/11/2025</code> →
+<code>"12 Nov 25"</code>), and assemble ONE final dataframe</em>. It is worth <b>40 marks</b> and it
+is <em>lengthy</em>. §22.1.9 works that exact drill end-to-end.</li>
+<li><b>Two sets circulated</b> — half the candidates got a <em>classification</em> target, half a
+<em>regression</em> one. Everything in §22.5 is written against RMSE and §22.5.8 converts it to
+classification in one cell; read both the night before, because you do not get to choose which set
+you sit.</li>
+<li><b>The interface is CodeSignal with a Jupyter front end</b>, and <b>non-GenAI internet was
+allowed</b>: StackOverflow, GeeksforGeeks and the official pandas / scikit-learn docs are open, AI
+assistants are not. Practically — you can look an argument name up, so spend the preparation on
+<em>shapes of solutions</em> rather than on signatures.</li>
+<li><b>The MCQs are scenario-based</b>, mixing probability, statistics and ML rather than testing
+definitions, and <b>copy-paste of the question text is blocked</b>, so every one has to be read once,
+carefully, on screen. Budget reading time for them; §22.6.8 is the statistics half.</li>
+<li><b>Part 3 is scored against an internal threshold</b> on the predicted target — surpass it and
+the section pays <b>100%</b> — and <b>the score is displayed on every submission</b>. That single
+fact rewrites the running order of the whole paper: see §22.7.</li>
+</ul>
+</div>
+
+<div class="note"><b>Two accounts, one test.</b> The quoted structure above says "one table divided
+into 4 subparts + 3 other different tables"; the first-hand report describes four master tables joined
+on their keys. Read them as two sittings of the same question rather than as a contradiction — both
+are <em>stack/join → derive → aggregate → one final frame</em>, and the pandas tested is identical.
+Where they differ, the first-hand report is the more recent, so §22.1.9 rehearses its four-table shape
+and §22.7 follows its scoring.</div>
 
 <div class="note"><b>Two subsections here are not from the notebook.</b> §22.3 (datetime and
 time-series preprocessing) is built from a second user-supplied source — a preprocessing cheat-sheet
@@ -16132,12 +16167,12 @@ you. The dangerous case is the one where the glob <em>does</em> match something:
 silently replaced by a frame with different columns, and §22.1.3's join, §22.1.4's derived columns and
 every aggregate after them are computed on the wrong table without a single error message. The fix is
 one character of discipline — name the demo variable something else
-(<code>sales_from_files = pd.concat(...)</code>). This is the "Q1 failure mode" the kit's own test-day
+(<code>sales_from_files = pd.concat(...)</code>). This is the "Q1 failure mode" the kit's own exam-day
 rule 3 is about: <em>print <code>df.shape</code> after every transformation.</em></div>
 
 <h4>22.1.3 &nbsp; Join the lookup tables</h4>
 
-<p>Two habits that save you in a timed test:
+<p>Two habits that save you in a class exam:
 <code>validate=</code> makes pandas <em>raise</em> if the join is not the cardinality you assumed
 (<code>"m:1"</code>, <code>"1:1"</code>, <code>"1:m"</code>), and <code>indicator=True</code> tells you
 which rows failed to match. Here all 1150 rows match on all three joins
@@ -16588,6 +16623,258 @@ use whichever reads better, but remember <code>&amp;</code>/<code>|</code> need 
 comparison, which is precisely the annoyance <code>.query()</code> removes.
 <code>apply(..., axis=1)</code> is the slow path — it exists in this cell to be named and avoided.</p>
 </details>
+
+<h4>22.1.9 &nbsp; The multi-table rehearsal: cab-aggregator drill</h4>
+
+<p>The first-hand report's version of Q1 is four tables, not four fragments, and it is the version
+worth rehearsing. The drill, as set:
+<em>"Join all four datasets into a single ride-level DataFrame. Ensure no duplication of rows"</em>
+(5 marks); <em>per-driver average rating and total rides, merged back</em> (5); <em>convert all date
+columns and add a display column in the format <code>12 Nov 25</code></em> (5);
+<em><code>wait_minutes</code>, <code>ride_minutes</code>, <code>request_hour</code>,
+<code>request_dayofweek</code>, <code>is_peak</code></em> (10); <em><code>fare_per_km</code>,
+customer and driver tenure in days, an anomaly flag for <code>fare &lt; 50</code> with
+<code>distance &gt; 5</code></em> (10); <em>which city has the highest cancellation %, which hub has
+the best-rated drivers</em> (5). Forty marks, and — the
+point of §22.7 — not one of them is awarded until the final dataframe exists.</p>
+
+<p>A practice attempt at this drill exists and reaches the answers, but leaves four rough edges that
+each cost time or correctness: a
+<code>driver_id_x</code> that every later line has to work around, <code>request_hour</code> built as
+a <em>string</em> via <code>strftime("%H")</code> and cast back with <code>.astype(int)</code> at
+every use, <code>fare_per_km</code> computed from two <em>different</em> frames, and no row-count
+check anywhere. What follows is the clean solution, on a literal four-table fixture with the same
+schema, so every snippet below runs as written.</p>
+
+<details class="code"><summary>Code — the four-table fixture, and one ride-level frame</summary>
+<pre><code>import numpy as np, pandas as pd
+
+# ---------- fixture: the drill's schema, shrunk to 8 rides ----------
+customers = pd.DataFrame({
+    "customer_id": ["C1", "C2", "C3", "C4"],
+    "signup_date": ["12/11/2025", "03/01/2024", "28/12/2023", "05/07/2025"],   # dd/mm/yyyy
+    "city":        ["Bengaluru", "Chennai", "Delhi", "Bengaluru"],
+    "segment":     ["retail", "premium", "retail", "premium"],
+})
+drivers = pd.DataFrame({
+    "driver_id": ["D1", "D2", "D3"],
+    "join_date": ["07/12/2023", "11/02/2024", "13/03/2024"],
+    "home_hub":  ["Koramangala", "T.Nagar", "ConnaughtPlace"],
+})
+vehicles = pd.DataFrame({
+    "vehicle_id":   ["V1", "V2", "V3"],
+    "driver_id":    ["D1", "D2", "D3"],        # &lt;- the vehicle table carries driver_id TOO
+    "vehicle_type": ["Hatchback", "Sedan", "SUV"],
+    "make_year":    [2022, 2019, 2020],
+    "fuel_type":    ["CNG", "Diesel", "Electric"],
+})
+rides = pd.DataFrame({
+    "ride_id":    ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8"],
+    "request_ts": ["01/12/2025 08:10:00", "01/12/2025 13:05:00", "01/12/2025 18:40:00",
+                   "02/12/2025 09:00:00", "02/12/2025 22:15:00", "02/12/2025 17:30:00",
+                   "03/12/2025 07:45:00", "03/12/2025 20:05:00"],
+    "pickup_ts":  ["01/12/2025 08:18:30", "01/12/2025 13:12:00", "01/12/2025 18:55:00",
+                   "02/12/2025 09:05:00", "02/12/2025 22:20:00", "02/12/2025 17:50:00",
+                   "03/12/2025 07:52:00", "03/12/2025 20:11:00"],
+    "dropoff_ts": ["01/12/2025 08:47:00", "01/12/2025 13:31:00", np.nan,
+                   "02/12/2025 09:35:00", "02/12/2025 22:52:00", np.nan,
+                   "03/12/2025 08:20:00", np.nan],
+    "customer_id": ["C1", "C2", "C3", "C1", "C2", "C4", "C3", "C4"],
+    "driver_id":   ["D1", "D2", "D3", "D2", "D1", "D3", "D1", "D2"],
+    "vehicle_id":  ["V1", "V2", "V3", "V2", "V2", "V3", "V1", "V2"],
+    "distance_km": [12.40, 6.20, 0.00, 9.50, 15.00, 0.00, 5.60, 0.00],
+    "fare_amount": [300.00, 180.00, 0.00, 45.00, 380.00, 0.00, 150.00, 25.00],
+    "payment_method":  ["upi", "card", "cash", "cash", "upi", "cash", "card", "upi"],
+    "customer_rating": [4.8, 4.2, 3.5, 4.0, 4.9, 3.0, 4.4, 4.1],
+    "cancel_reason":   ["none", "none", "user_cancel", "none", "none",
+                        "driver_cancel", "none", "user_cancel"],
+    "city_at_request": ["Bengaluru", "Chennai", "Delhi", "Bengaluru", "Chennai",
+                        "Delhi", "Delhi", "Bengaluru"],
+})
+
+# ---------- 1. join: the RIDE table is the grain, so it is always the left frame ----------
+df = (rides
+      .merge(customers, on="customer_id", how="left", validate="m:1")
+      .merge(drivers,   on="driver_id",   how="left", validate="m:1")
+      .merge(vehicles,  on="vehicle_id",  how="left", validate="m:1",
+             suffixes=("", "_drv")))          # name the collision instead of accepting _x/_y
+
+print(len(rides), "-&gt;", len(df))                      # 8 -&gt; 8 : no duplication, nothing lost
+
+# the suffix is a CHECK, not decoration: the vehicle's registered driver should be the one driving
+bad = df.loc[df["driver_id"].ne(df["driver_id_drv"]), "ride_id"].tolist()
+print("driver/vehicle mismatch:", bad)                  # ['R5']
+df = df.drop(columns=["driver_id_drv"])                 # keep the ride table's key, drop the copy
+
+# ---------- 2. driver-level aggregate, then merge back ----------
+drv = (rides.groupby("driver_id", as_index=False)
+            .agg(driver_avg_rating=("customer_rating", "mean"),
+                 driver_ride_count=("ride_id", "count")))
+df = df.merge(drv, on="driver_id", how="left", validate="m:1")
+print(len(df), [c for c in df.columns if c.endswith(("_x", "_y"))])   # 8 []</code></pre>
+<p class="wnote">Three things earn the 5 "no duplication" marks and cost one line each.
+<code>how="left"</code> on the ride table fixes the grain at one row per ride;
+<code>validate="m:1"</code> makes pandas <em>prove</em> each lookup key is unique instead of you
+hoping — a duplicated <code>vehicle_id</code> raises <code>MergeError: Merge keys are not unique in
+right dataset; not a many-to-one merge</code> <!-- prov: s22_cab_drill.json:bugs.b8_validate --> at
+the merge rather than doubling your row count 200 lines later; and <code>suffixes=("", "_drv")</code>
+keeps the left frame's names untouched. Naming the aggregates <em>inside</em>
+<code>.agg()</code> — <code>driver_avg_rating=("customer_rating", "mean")</code> — is what stops the
+second, sneakier collision: aggregate into columns still called <code>customer_rating</code> and
+<code>ride_id</code> and the merge-back hands you <code>customer_rating_x</code>,
+<code>customer_rating_y</code>, <code>ride_id_x</code>, <code>ride_id_y</code>, which is exactly what
+the practice notebook then had to live with.</p>
+</details>
+
+<div class="warn"><b>The <code>driver_id_x</code> pain, named.</b> The vehicle table carries
+<code>driver_id</code> as well as <code>vehicle_id</code>. Merge on <code>vehicle_id</code> with
+pandas' defaults and the shared column silently becomes
+<code>driver_id_x</code> / <code>driver_id_y</code>
+<!-- prov: s22_cab_drill.json:naive_collision_cols -->; from that moment every groupby, every filter
+and every later merge has to spell <code>driver_id_x</code>, and one slip picks the wrong copy. Three
+fixes, in order of preference: (i) drop the redundant key before merging —
+<code>vehicles.drop(columns="driver_id")</code>; (ii) merge with
+<code>suffixes=("", "_drv")</code> so the left frame keeps its name and the incoming copy is labelled,
+then drop it; (iii) <code>df.columns</code> immediately after every merge, so a collision is something
+you <em>see</em> rather than something you discover. Option (ii) is the one used above because the
+duplicate is worth <em>reading</em> first: here it flags ride <code>R5</code>
+<!-- prov: s22_cab_drill.json:driver_key_mismatch_rides -->, a ride whose driver was not the driver
+the vehicle is registered to. One sentence about that in the notebook is a data-quality finding; a
+<code>driver_id_x</code> is not.</div>
+
+<details class="code"><summary>Code — the requested transformations: dates, durations, peak flag, derived metrics, cancellation rate</summary>
+<pre><code># ---------- 3. dates: parse with an EXPLICIT format, then audit ----------
+DATE_COLS = ["signup_date", "join_date"]
+TS_COLS   = ["request_ts", "pickup_ts", "dropoff_ts"]
+for c in DATE_COLS:
+    df[c] = pd.to_datetime(df[c], format="%d/%m/%Y", errors="coerce")
+for c in TS_COLS:
+    df[c] = pd.to_datetime(df[c], format="%d/%m/%Y %H:%M:%S", errors="coerce")
+print(df[DATE_COLS + TS_COLS].isna().sum())     # dropoff_ts 3 (the cancelled rides); rest 0
+
+# the asked-for display columns:  12/11/2025  -&gt;  "12 Nov 25"
+df["signup_date_display"] = df["signup_date"].dt.strftime("%d %b %y")
+df["join_date_display"]   = df["join_date"].dt.strftime("%d %b %y")
+
+# ---------- 4. durations, in minutes, straight off the timestamps ----------
+df["wait_minutes"] = (df["pickup_ts"]  - df["request_ts"]).dt.total_seconds().div(60).round(1)
+df["ride_minutes"] = (df["dropoff_ts"] - df["pickup_ts"]).dt.total_seconds().div(60).round(1)
+
+# ---------- 5. calendar parts: .dt.hour is ALREADY an int ----------
+df["request_hour"]      = df["request_ts"].dt.hour          # int, not "08"
+df["request_dayofweek"] = df["request_ts"].dt.day_name()    # 'Monday'
+df["is_peak"] = (df["request_hour"].between(7, 10) |
+                 df["request_hour"].between(17, 20)).astype(int)
+
+# ---------- 6. derived metrics — every column from THE SAME frame ----------
+df["fare_per_km"] = (df["fare_amount"] / df["distance_km"]).where(df["distance_km"] &gt; 0)
+df["customer_tenure_days"] = (df["request_ts"] - df["signup_date"]).dt.days
+df["driver_tenure_days"]   = (df["request_ts"] - df["join_date"]).dt.days
+df["anomaly_flag"] = ((df["fare_amount"] &lt; 50) &amp; (df["distance_km"] &gt; 5)).astype(int)
+
+# ---------- 7. the exploratory asks ----------
+df["cancel_flag"] = df["cancel_reason"].ne("none").astype(int)
+cancel = (df.groupby("city_at_request", as_index=False)
+            .agg(rides=("ride_id", "count"), cancels=("cancel_flag", "sum")))
+cancel["cancel_rate"] = (cancel["cancels"] / cancel["rides"] * 100).round(1)
+cancel.sort_values("cancel_rate", ascending=False)
+
+# hub ratings at DRIVER level: one row per driver first, or busy drivers vote twice
+(df.drop_duplicates("driver_id")
+   .groupby("home_hub", as_index=False)
+   .agg(avg_driver_rating=("driver_avg_rating", "mean"))
+   .sort_values("avg_driver_rating", ascending=False))</code></pre>
+<p class="wnote">Every line here answers one bullet of the drill. <code>.dt.total_seconds() / 60</code>
+is the whole of "duration in minutes" — a <code>Timedelta</code> prints as
+<code>0 days 00:08:30</code> and is useless as a feature until it is a float.
+<code>.where(cond)</code> is the cheapest guard in pandas: it keeps the value where the condition
+holds and writes <code>NaN</code> elsewhere, so a cancelled ride with a 25.00 cancellation fee and
+0 km does not become <code>inf</code>. And <code>groupby(...).agg(name=(col, fn))</code> — named
+aggregation — gives you a flat, already-named frame instead of a MultiIndex you then have to
+<code>reset_index</code> and rename.</p>
+</details>
+
+<div class="warn"><b>Parse the dates with a format, or lose a month.</b> These strings are
+<code>dd/mm/yyyy</code>. Hand them to a bare <code>pd.to_datetime</code> and pandas infers the format
+from the <em>first</em> element and applies it to the rest, which fails in one of two ways depending
+on your luck. <b>Loud:</b> the customer table raises
+<code>ValueError: time data "28/12/2023" doesn't match format "%m/%d/%Y", at position 2</code>
+<!-- prov: s22_cab_drill.json:default_parse_dates --> — it guessed month-first from
+<code>12/11/2025</code> and then met a 28th. <b>Silent, and far worse:</b> every ride timestamp in
+this fixture has a day-of-month ≤ 12, so month-first "works" and the whole table quietly moves from
+December 2025 to January–March 2025 <!-- prov: s22_cab_drill.json:request_wrong_month_span -->
+<!-- prov: s22_cab_drill.json:request_right_month_span -->, taking every tenure, every hour-of-day
+and every peak flag with it. The same string is the drill's own example:
+<code>12/11/2025</code> is <b>12 Nov 25</b> with <code>format="%d/%m/%Y"</code> and
+<b>11 Dec 25</b> without <!-- prov: s22_cab_drill.json:signup_c1_right -->
+<!-- prov: s22_cab_drill.json:signup_c1_wrong -->. Pass <code>format=</code> when you know it,
+<code>dayfirst=True</code> when you do not, and print the NaT count either way (§22.3.1).</div>
+
+<div class="warn"><b><code>strftime("%H").astype(int)</code> — the detour to avoid.</b> The practice
+notebook built the peak flag as
+<code>df["request_hour"] = df["request_ts"].dt.strftime("%H")</code> and then wrote
+<code>.astype("int")</code> four times inside one boolean mask. It gives the right answer here and is wrong as a habit:
+<code>strftime</code> returns <code>object</code> dtype
+<!-- prov: s22_cab_drill.json:strftime_hour_dtype --> holding <code>'08', '13', '18'</code>
+<!-- prov: s22_cab_drill.json:strftime_hour_head -->, so the column sorts as text, compares as text,
+and any <code>NaT</code> in it becomes <code>NaN</code> — at which point
+<code>.astype(int)</code> raises <code>ValueError: cannot convert float NaN to integer</code>
+<!-- prov: s22_cab_drill.json:strftime_nat_astype_int -->, which in this dataset is exactly what a
+cancelled ride would hand you. <code>.dt.hour</code> is an integer column already
+<!-- prov: s22_cab_drill.json:request_hour_dtype -->; keep <code>strftime</code> for the
+<em>display</em> columns, where a string is the deliverable (§22.3.9).</div>
+
+<div class="warn"><b>One frame per expression.</b> The notebook wrote
+<code>df_r["fare_per_km"] = df_r["fare_amount"] / df["distance_km"]</code> — numerator from the enriched frame, denominator from the
+frame before the aggregate merge. pandas does not object: it aligns the two Series <em>on the index</em>
+and returns a result. It happens to be right when the two frames still share an index, and silently
+wrong the moment one of them has been filtered, sorted, de-duplicated or reset — in the check run for
+Practice 22.6, mixing a reordered copy of the same eight rows changes 7 of 8 values and turns two of
+them into <code>inf</code> <!-- prov: s22_cab_drill.json:bugs.b9_disagree_rows -->
+<!-- prov: s22_cab_drill.json:bugs.b9_cross_frame -->. Rule: if two column references in one
+expression do not have the same frame name, stop and fix it.</div>
+
+<details class="code"><summary>Code — the final-frame checklist: the six lines you run before submitting Q1</summary>
+<pre><code>assert len(df) == len(rides), (len(rides), len(df))   # grain preserved: 8 in, 8 out
+assert df["ride_id"].is_unique                        # still one row per ride
+print(df.shape)                                       # (8, 35)
+print(df.isna().sum().loc[lambda s: s &gt; 0])           # dropoff_ts 3, ride_minutes 3, fare_per_km 3
+print(df.dtypes.value_counts())                       # 5 datetime64[ns], 15 numeric, 15 object
+print(df.select_dtypes("object").columns.tolist())    # ids + true categoricals + display cols ONLY
+df.head(3)</code></pre>
+<p class="wnote">Read the isnull audit as a <em>claim</em>, not a report: three nulls in
+<code>dropoff_ts</code>, three in <code>ride_minutes</code>, three in <code>fare_per_km</code>
+<!-- prov: s22_cab_drill.json:final_null_cols -->, and there are exactly three cancelled rides
+<!-- prov: s22_cab_drill.json:cancel_flag_total -->. The nulls line up with the cancellations, so
+they are <em>structural</em> — the trip never happened — and they must not be mean-imputed
+(§22.2.6). If the counts had <em>not</em> lined up, that mismatch is the bug. The dtype line is the
+other half: anything still <code>object</code> that should be a number or a date is a column you
+forgot, and the fastest way to find it is to look at the list rather than scroll
+<code>df.info()</code>.</p>
+</details>
+
+<div class="summary"><b>Interpretation — what the drill actually returns.</b> Eight rides in, eight
+rows out, 35 columns <!-- prov: s22_cab_drill.json:final_shape -->, no <code>_x</code>/<code>_y</code>
+anywhere <!-- prov: s22_cab_drill.json:agg_merge_collision_cols -->. The driver aggregate is
+D1 4.70 over 3 rides, D2 4.10 over 3, D3 3.25 over 2
+<!-- prov: s22_cab_drill.json:driver_agg -->; ride R1 waits 8.5 minutes and runs 28.5
+<!-- prov: s22_cab_drill.json:wait_minutes --><!-- prov: s22_cab_drill.json:ride_minutes_r1 -->, at
+24.19 fare units per km <!-- prov: s22_cab_drill.json:fare_per_km_r1 -->, from a customer 19 days old and a
+driver 725 days old <!-- prov: s22_cab_drill.json:tenure_r1 -->; six of the eight requests are in
+peak hours <!-- prov: s22_cab_drill.json:is_peak_counts -->; one ride trips the anomaly rule — R4,
+9.50 km for 45.00 <!-- prov: s22_cab_drill.json:anomaly_rides -->; and the two exploratory answers
+are <b>Delhi, 66.7% cancelled</b> (2 of 3) against Bengaluru's 33.3% and Chennai's 0%
+<!-- prov: s22_cab_drill.json:cancel_by_city --> and <b>Koramangala</b> at an average driver rating
+of 4.70 <!-- prov: s22_cab_drill.json:hub_ratings -->. Two sentences are worth writing next to those
+answers, and they are the marks the code alone does not get: <em>"the cancellation rate is computed
+on <code>city_at_request</code>, the city the ride was requested in, not the customer's home
+<code>city</code> — they differ for a customer travelling"</em>, and <em>"with 2 and 3 rides per city
+these rates are estimates from single digits; I would report counts alongside the percentage."</em>
+And the row-count discipline underneath all of it: swap one <code>how="left"</code> for
+<code>how="inner"</code> with a single customer missing from the master and the frame goes from 8
+rows to 6 <!-- prov: s22_cab_drill.json:inner_join_rows_if_key_missing -->
+<!-- prov: s22_cab_drill.json:left_join_rows_if_key_missing --> without a warning
+(§22.1.3).</div>
 
 <h3>22.2 &nbsp; Q2 — Data cleaning</h3>
 
@@ -18096,7 +18383,7 @@ leak-prone). Second, <b>does the object know how to be refitted</b>: <code>pd.cu
 <code>pd.qcut</code> are functions with no memory, so leakage-safety is on you — freeze the edge array
 on train and reuse that same array on test, the frozen-<code>Series</code> pattern of §22.2.10 —
 whereas <code>KBinsDiscretizer</code> is an estimator and a <code>Pipeline</code> step, so cross-validation
-refits it per fold for free. In a timed test, use <code>qcut</code> to <em>look</em> at a column and
+refits it per fold for free. In a class exam, use <code>qcut</code> to <em>look</em> at a column and
 <code>KBinsDiscretizer</code> to <em>model</em> with it.</div>
 
 <p><b>Supervised binning, the one route that uses $y$.</b> Equal width and equal frequency both ignore
@@ -18871,7 +19158,7 @@ wall-clock on the build machine; the ratios are the part that travels.</div>
 with the default <code>errors="raise"</code> gives
 <code>ValueError: day is out of range for month, at position 1</code>
 <!-- prov: s22_timeseries.json:dt_no_coerce_error --> — informative (it even names the offending
-position) but fatal in a timed test. The pattern is: <em>coerce first to keep moving, then go back and
+position) but fatal in a class exam. The pattern is: <em>coerce first to keep moving, then go back and
 look at what became NaT.</em> <code>NaN</code> is a missing <em>numeric</em>, <code>NaT</code> is a
 missing <em>datetime</em>; they behave the same way
 under <code>isna()</code> and they are not interchangeable in a <code>fillna</code>.</div>
@@ -20063,7 +20350,7 @@ residual model" hybrid is doing.</p>
 </div>
 
 <div class="summary"><b>Interpretation.</b> Read row 1 as a diagnosis, not a score. The raw model's
-<em>maximum</em> prediction over 200 test days is 199.679 while its own last training-row prediction is
+<em>maximum</em> prediction over 200 exam days is 199.679 while its own last training-row prediction is
 186.503 <!-- prov: s22_timeseries.json:ts_extrap_last_train_pred -->: it has run out of leaves and is
 now returning a constant, so its mean prediction sits 27.175 below the truth
 <!-- prov: s22_timeseries.json:ts_extrap_raw_bias --> — a pure, one-directional <em>bias</em>, which is
@@ -20414,7 +20701,7 @@ different (and noisier) objective than the single validation split, so a small r
 is not a bug. Note also the RF's CV RMSE (46.863) is far worse than its val RMSE (40.434) — 3-fold CV
 trains on two-thirds of the data, and trees are data-hungry. <b>Time-management reading:</b> the
 tuning in these two cells bought 0 RMSE over the untuned linear model and cost the most compute in the
-notebook. In a timed test, tune <em>after</em> the submission file exists.</div>
+notebook. In a class exam, tune <em>after</em> the submission file exists.</div>
 
 <h4>22.5.5 &nbsp; Diagnostics — where is the error coming from?</h4>
 
@@ -20827,7 +21114,7 @@ before changing anything: nine times in ten the fix is a single <code>[:, None]<
 <tr><td class="num">2</td><td><code>df["c"].notna().mean()</code></td><td>parse rate after a <code>to_numeric</code>/<code>to_datetime</code> coercion</td></tr>
 <tr><td class="num">3</td><td><code>df["c_was_na"] = df["c"].isna().astype("int8")</code></td><td>the indicator — create it <b>before</b> any fill (§22.2.8)</td></tr>
 <tr><td class="num">4</td><td><code>s.fillna(value)</code></td><td>fill with a constant or a statistic you computed on <b>train</b></td></tr>
-<tr><td class="num">5</td><td><code>s.fillna(s.median())</code> vs <code>s.fillna(s.mean())</code></td><td>median when skewed or outlier-prone (the test-day default); mean when symmetric</td></tr>
+<tr><td class="num">5</td><td><code>s.fillna(s.median())</code> vs <code>s.fillna(s.mean())</code></td><td>median when skewed or outlier-prone (the exam-day default); mean when symmetric</td></tr>
 <tr><td class="num">6</td><td><code>g["c"].transform(lambda s: s.fillna(s.median()))</code></td><td>group-wise fill — the MAR repair of §22.2.8; chain <code>.fillna(global)</code> for empty groups</td></tr>
 <tr><td class="num">7</td><td><code>s.ffill(limit=2)</code> / <code>s.bfill(limit=2)</code></td><td>carry forward/back in a <b>sorted time series</b>; <code>limit</code> stops a stale value propagating forever</td></tr>
 <tr><td class="num">8</td><td><code>df.dropna(subset=["y"])</code></td><td>drop rows missing the <em>target</em> — almost always right</td></tr>
@@ -21041,14 +21328,60 @@ chi-square on two independent random columns behaves as it must: χ² = 0.009, d
 <!-- prov: s22_verify_kit.json:stats_chi2_dof -->, and the 95% CI for mean(a) is
 [98.959, 102.991] <!-- prov: s22_verify_kit.json:stats_ci_mean_a -->, which covers the true 100.</div>
 
-<h3>22.7 &nbsp; Test-day operating procedure</h3>
+<h3>22.7 &nbsp; Exam-day operating procedure</h3>
+
+<div class="warn">
+<b>Attack order: 3 → 2 → MCQs → 1</b>. The
+<em>scoring</em> decides the order, not the numbering, and on this paper the scoring is lopsided:
+part 1 is 40 marks that pay <b>nothing</b> until the final dataframe exists in the requested format,
+while part 3 pays <b>100%</b> of its section the moment an internal threshold on the predicted target
+is crossed — and it shows you the score on every submission.
+<ol>
+<li><b>Open every part and read part 3's requirement first</b> (3 min): target column, metric, output
+format, and where the submit button is. Note whether part 3 ships its own dataset or consumes your
+part-1 output — that single check decides whether the rest of this list applies as written.</li>
+<li><b>Solve part 3 now, with an untuned model.</b> Median-impute the numerics, most-frequent the
+categoricals, one-hot, split with <code>stratify</code> and a <code>random_state</code>, then one
+line: <code>XGBClassifier(tree_method="hist", random_state=0)</code> — the workflow and the
+"trees need no scaling, leave the NaNs alone" rules are §13.13 — or
+<code>RandomForestClassifier(n_estimators=300, random_state=0)</code>. Fit, predict,
+<b>submit</b>.</li>
+<li><b>Read the displayed score, and stop the moment it says 100%.</b> This is the discipline the
+whole order exists to enforce. A threshold is a <em>pass mark</em>, not a leaderboard: once it is
+cleared, every further minute of tuning buys exactly zero marks in a section where you already have
+all of them, while parts 1 and 2 sit untouched. If the first model falls short, spend the next
+minutes on §22.5.3's bake-off loop — a dict of candidates and a five-line <code>for</code> — rather
+than on the hyper-parameters of the one model you happened to type first; switching model family
+moves the score far more than tuning does (§22.5.4).</li>
+<li><b>Part 2 next</b> (imputation, one-hot, label encoding). These are the most deterministic marks
+on the paper: a fixed checklist, no search, no threshold — §22.2's seven-step order, and §22.2.7 for
+the leakage-safe form of every imputer.</li>
+<li><b>MCQs next.</b> Scenario-based probability / statistics / ML, and the question text cannot be
+copy-pasted, so each one costs a careful on-screen read. Timebox them — the docs are open
+(non-GenAI internet is allowed), so look up the one formula you are unsure of and move; §22.6.8 is
+the statistics half.</li>
+<li><b>Part 1 last</b>, with whatever remains. It is the longest question on the paper and the one
+whose partial work scores worst, so it is the right thing to be holding when the clock runs out —
+and if you have rehearsed §22.1.9, its four joins, its aggregate merge-back and its date-display
+columns are 20 minutes, not 60.</li>
+</ol>
+</div>
+
+<div class="note"><b>When this order does not hold.</b> It assumes part 3 is scored independently and
+gives you a modellable dataset. If instead part 3 consumes the frame you build in part 1, the order
+inverts into a <em>minimum viable path</em>: join the tables, coerce the dtypes, skip every derived
+column and every display format, get <em>a</em> frame into part 3, submit for a score, and only then
+go back and earn part 1's remaining marks properly. Either way the invariant is the same one the kit
+states in its own words — get a working end-to-end submission before you improve anything.</div>
 
 <div class="summary">
 <b>The two hours, in order.</b>
 <ol>
 <li><b>Read all three questions first</b> (2 min). Note the exact output format each one wants.</li>
-<li><b>Q1 first, Q3 second, Q2 last if time is tight</b> — Q3 carries the pass/fail test-cases, and a
-half-cleaned dataset still trains a model.</li>
+<li><b>Q3 first.</b> The kit's own order was <em>Q1 first, Q3 second, Q2 last if time is tight</em>,
+reasoning that Q3 carries the pass/fail test-cases and a half-cleaned dataset still trains a model.
+The first-hand report supersedes it: when the modelling section <em>displays</em> your score on
+submission, do it first and bank the 100% — see the attack-order block above.</li>
 <li>After every transformation, <code>print(df.shape)</code>. Silent row loss from an inner join is
 the most common self-inflicted failure — and §22.1.2's cell-6 landmine is the version of it that
 loses the whole table.</li>
@@ -21428,7 +21761,7 @@ rmse(te["sales"], te["lag_7"])                            # seasonal naive  &lt;
 <p><b>Answer: 2.7103 against the seasonal-naive 2.9204, a 7.2% improvement
 <!-- prov: s22_timeseries.json:p225.improvement_pct --></b>, with predictions
 <code>[69.03, 66.91, 49.35]</code> against actuals <code>[69.45, 68.99, 47.72]</code> on the first
-three test days <!-- prov: s22_timeseries.json:p225.first3_pred --><!-- prov: s22_timeseries.json:p225.first3_actual -->.</p>
+three exam days <!-- prov: s22_timeseries.json:p225.first3_pred --><!-- prov: s22_timeseries.json:p225.first3_actual -->.</p>
 
 <p><b>Step 4 — the three things to say.</b></p>
 <ul>
@@ -21454,6 +21787,199 @@ training and day <em>t+1</em> in validation, and day <em>t+1</em>'s <code>lag_1<
 <p>If the drill asked you to go further: add <code>lag_14</code> and a shifted 28-day mean for a better
 level estimate, and — because this series has a genuine upward trend — check the extrapolation
 diagnosis of §22.4.7 before trusting the model on a horizon much longer than 45 days.</p>
+</div></details>
+
+<p>Nine snippets, every one of them real, taken from a single practice run across five datasets and
+the cab-aggregator drill. Three raise an exception; the
+other six run to completion and hand you a wrong answer. Read them before opening the solution: name
+the bug, say whether it is loud or silent, and write the one-line fix.</p>
+
+<ol>
+<li><pre><code>df['Self_Employed'] = df['Self_Employed'].fillna('mode')</code></pre></li>
+
+<li><pre><code>sca = StandardScaler()                                                  # cell 21
+X_train['Mileage_KM']   = sca.fit_transform(X_train[['Mileage_KM']])    # cell 22
+X_test ['Mileage_KM']   = sca.transform(X_test[['Mileage_KM']])         # cell 23
+X_train['Price_USD']    = sca.fit_transform(X_train[['Price_USD']])     # cell 24
+X_test ['Price_USD']    = sca.transform(X_test[['Price_USD']])
+X_train['Sales_Volume'] = sca.fit_transform(X_train[['Sales_Volume']])  # cell 25
+X_test ['Sales_Volume'] = sca.transform(X_test[['Sales_Volume']])</code></pre></li>
+
+<li><pre><code>knn_im = KNNImputer(n_neighbors=7)
+df['Driver Cancellation Reason'] = knn_im.fit_transform(df[['Driver Cancellation Reason']])</code></pre></li>
+
+<li><pre><code>payment    = ohe.fit_transform(df[['Payment Method']])
+c          = ohe.get_feature_names_out()
+payment_df = pd.DataFrame(payment, columns=c)
+df = pd.concat([df.drop('Payment Method', axis=1), payment_df], axis=1)</code></pre></li>
+
+<li><pre><code>df = pd.get_dummies(df, columns=['Model', 'Region', 'Color', 'Fuel_Type',
+                                 'Transmission', 'Mileage_KM'], drop_first=True)</code></pre></li>
+
+<li><pre><code>xg = XGBClassifier()
+xg.fit(df['Sales_Classification'], df.drop('Sales_Classification', axis=1))</code></pre></li>
+
+<li><pre><code>X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.3)</code></pre></li>
+
+<li><pre><code>df   = r_c_d_v.copy()          # ride + customer + driver + vehicle, merged on defaults
+df_g = df.groupby(by='driver_id_x').agg({'customer_rating': 'mean', 'ride_id': 'count'})
+df_r = df.merge(df_g, on='driver_id_x', how='left')</code></pre></li>
+
+<li><pre><code>df_r['fare_per_km'] = df_r['fare_amount'] / df['distance_km']</code></pre></li>
+</ol>
+
+<details class="practice"><summary>Practice 22.6 — bug hunt: nine real mistakes from a practice run.
+For each snippet above, name the bug, say why it is wrong or silently dangerous, and give the
+one-line fix.</summary>
+<div class="sol">
+<p>Three of the nine raise (3, 6, and 2 in its DataFrame form); the rest are silent, which is what
+makes them worth memorising. Every "fix" line below was executed before being written down.</p>
+
+<ol>
+<li><p><b>Filling with the <em>word</em> "mode".</b> <code>fillna('mode')</code> writes the literal
+five-character string; pandas has no idea you meant the statistic. It is silent, it passes
+<code>isnull().sum() == 0</code>, and it survives all the way into the encoder, where <code>mode</code>
+becomes a legitimate third category. In the notebook the column ends up
+<code>No 307 / Yes 37 / mode 23</code>; in the check run,
+3 of 11 rows <!-- prov: s22_cab_drill.json:bugs.b1_buggy_counts --> instead of the correct
+<code>No 9 / Yes 2</code> <!-- prov: s22_cab_drill.json:bugs.b1_fixed_counts -->.</p>
+<p><b>Fix:</b> <code>df['Self_Employed'] = df['Self_Employed'].fillna(df['Self_Employed'].mode()[0])</code>
+— <code>.mode()</code> returns a <em>Series</em> (ties are possible), hence the <code>[0]</code>. In a
+pipeline, <code>SimpleImputer(strategy="most_frequent")</code> does the same thing per fold
+(§22.2.7).</p></li>
+
+<li><p><b>One scaler object, three <code>fit_transform</code> calls.</b> Each
+<code>fit</code> <em>overwrites</em> the previous one, so after cell 25 the object holds
+<code>Sales_Volume</code>'s statistics — <code>sca.mean_[0] = 5007.65</code>
+<!-- prov: s22_cab_drill.json:bugs.b2_scaler_last_fit_mean --> — and knows nothing about
+<code>Mileage_KM</code>'s mean of 100457.89
+<!-- prov: s22_cab_drill.json:bugs.b2_true_mileage_mean -->. In a notebook that is not a hypothetical:
+the moment you scroll back and re-run cell 23 (or run the cells out of order at all), the test set's
+<code>Mileage_KM</code> is scaled with a car's <em>sales volume</em> statistics. Modern sklearn
+catches it <em>only</em> because a DataFrame carries column names —
+<code>ValueError: The feature names should match those that were passed during fit.</code>
+<!-- prov: s22_cab_drill.json:bugs.b2_buggy_dataframe --> — and that guard vanishes the instant
+anyone writes <code>.values</code> or <code>.to_numpy()</code>, where the same call returns a column
+with mean 62.15 instead of ≈ 0 <!-- prov: s22_cab_drill.json:bugs.b2_buggy_silent_mean -->. The
+failure this produces in the wild is the report's own: a column standardised on train and left raw on
+test, i.e. two different feature spaces, no error message.</p>
+<p><b>Fix:</b> one scaler, all columns at once, fit on train only —
+<code>COLS = ['Mileage_KM','Price_USD','Sales_Volume']; X_train[COLS] = sc.fit_transform(X_train[COLS]); X_test[COLS] = sc.transform(X_test[COLS])</code>
+(train means 0.0, test mean −0.078 <!-- prov: s22_cab_drill.json:bugs.b2_fixed_train_means -->
+<!-- prov: s22_cab_drill.json:bugs.b2_fixed_test_mileage_mean -->, exactly as it should be). Better:
+put the scaler in a <code>ColumnTransformer</code> inside the <code>Pipeline</code>, where "fit on
+train only" stops being something you have to remember (§22.2.9, §21.7).</p></li>
+
+<li><p><b><code>KNNImputer</code> on a string column.</b> KNN imputation needs distances, distances
+need numbers, so the call dies with
+<code>ValueError: could not convert string to float: 'Personal &amp; Car related issues'</code>
+<!-- prov: s22_cab_drill.json:bugs.b3_buggy --> — the same error the notebook itself captured. This one is loud, so it costs minutes rather than
+marks, but the instinct behind it is the expensive part: reaching for the sophisticated imputer
+before checking the dtype.</p>
+<p><b>Fix:</b> <code>SimpleImputer(strategy="most_frequent")</code> for categorical columns
+<!-- prov: s22_cab_drill.json:bugs.b3_fixed -->; keep <code>KNNImputer</code> for numeric columns, or
+run it <em>after</em> encoding — and remember that here the missing value is not missing at all, it
+means "the ride was not cancelled", which is a category (<code>"not_cancelled"</code>), not a hole
+(§22.2.6, §22.3.8).</p></li>
+
+<li><p><b><code>pd.concat</code> of a frame built without an index.</b>
+<code>ohe.fit_transform</code> returns a bare numpy array; wrapping it in
+<code>pd.DataFrame(...)</code> without <code>index=</code> gives it a fresh
+<code>RangeIndex</code> starting at 0, and <code>concat(axis=1)</code> aligns on the index — it does
+not staple columns side by side. If <code>df</code>'s index is anything other than
+<code>0..n-1</code> (any filter, any <code>drop_duplicates</code>, any <code>dropna</code> upstream),
+the result is the <em>union</em> of two indexes: in the check run, 4 rows and 4 rows become <b>7 rows
+with 9 NaNs</b> <!-- prov: s22_cab_drill.json:bugs.b4_buggy_rows -->
+<!-- prov: s22_cab_drill.json:bugs.b4_buggy_nans -->. The notebook gets this right for one encoded
+column and wrong for the next one, ten cells later —
+which is exactly how it happens under time pressure.</p>
+<p><b>Fix:</b> <code>payment_df = pd.DataFrame(payment, columns=c, index=df.index)</code> — 4 rows,
+0 NaNs <!-- prov: s22_cab_drill.json:bugs.b4_fixed_rows -->
+<!-- prov: s22_cab_drill.json:bugs.b4_fixed_nans -->. And print
+<code>df.shape</code> after every <code>concat</code>.</p></li>
+
+<li><p><b><code>get_dummies</code> on a continuous column.</b> <code>Mileage_KM</code> is a reading in
+kilometres, not a category. One-hot encoding gives it one column <em>per distinct value</em>: in the
+notebook, an 11-column frame becomes <b>44 375 columns</b>; in the check run, 500 distinct mileages turn 4 columns
+into 503 <!-- prov: s22_cab_drill.json:bugs.b5_buggy_cols -->
+<!-- prov: s22_cab_drill.json:bugs.b5_nunique_mileage -->. Nothing raises. The model then trains on a
+matrix that is almost entirely zeros, in which every training row has its own private feature — the
+purest possible overfit, and on a real test the cell simply never finishes. The original run had the
+same shape of error with <code>Year</code>, which at least has 15 levels.</p>
+<p><b>Fix:</b> leave it numeric — trees split it and linear models scale it. If you genuinely want it
+categorical, bin first:
+<code>pd.qcut(df['Mileage_KM'], 4, labels=['q1','q2','q3','q4'])</code>, then dummy the band (8
+columns <!-- prov: s22_cab_drill.json:bugs.b5_fixed_cols -->). The general rule and the
+cardinality menu are in §22.2.10 and §22.2.12; the one-line guard is
+<code>df[col].nunique()</code> before every <code>get_dummies</code>.</p></li>
+
+<li><p><b>Arguments reversed: <code>fit(y, X)</code>.</b> The sklearn-style signature is
+<code>fit(X, y)</code> — features first, target second — always. Passing the target as
+<code>X</code> makes a 1-column design matrix and turns the 10-column feature frame into the label
+vector, so xgboost 3.4.0 <!-- prov: s22_cab_drill.json:bugs.xgboost_version --> answers
+<code>ValueError: Invalid classes inferred from unique values of `y`</code>
+<!-- prov: s22_cab_drill.json:bugs.b6_buggy -->. It is loud for a <em>classifier</em>, because the
+class list is checked. The same slip in a <code>XGBRegressor</code> or a
+<code>LinearRegression</code> is far quieter: it either raises an unhelpful shape error or, when the
+shapes happen to be compatible, fits a model of the target on the target.</p>
+<p><b>Fix:</b> <code>xg.fit(df.drop('Sales_Classification', axis=1), df['Sales_Classification'])</code>
+— i.e. <code>xg.fit(X, y)</code>, which trains to accuracy 1.0 on the check fixture
+<!-- prov: s22_cab_drill.json:bugs.b6_fixed_train_acc -->. Build <code>X</code> and <code>y</code> as
+named variables one cell earlier and the mistake becomes unwriteable.</p></li>
+
+<li><p><b>A split with neither <code>random_state</code> nor <code>stratify</code>.</b> Two separate
+faults. Without <code>random_state</code> the split changes on every re-run, so your validation score
+moves when nothing else did, and nothing you report is reproducible — including for the grader
+re-running your notebook. Without <code>stratify</code> the class balance is left to chance: over 200
+splits of a 5%-minority target, the minority share of the test set ranged from <b>0.0% to 10.0%</b>
+<!-- prov: s22_cab_drill.json:bugs.b7_nostrat_minority_range -->, and 1.5% of the splits contained
+<em>no minority rows at all</em> <!-- prov: s22_cab_drill.json:bugs.b7_nostrat_zero_minority_pct -->
+— on which <code>roc_auc_score</code> raises and recall is undefined. With
+<code>stratify</code> it was 5.0% every single time
+<!-- prov: s22_cab_drill.json:bugs.b7_strat_minority_range -->.</p>
+<p><b>Fix:</b>
+<code>train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)</code> — and for a time
+column, neither of these is enough: split on the date (§22.4.3).</p></li>
+
+<li><p><b>Living with <code>driver_id_x</code>.</b> The suffix is not the bug; accepting it is. Two
+of the four tables carry <code>driver_id</code>, so a default merge produces
+<code>driver_id_x</code> and <code>driver_id_y</code>
+<!-- prov: s22_cab_drill.json:bugs.b8_default_suffix_cols -->, and every subsequent line — the
+groupby key, the merge-back key, every filter — has to name a column whose meaning is now positional.
+Then the aggregate itself collides: <code>.agg({'customer_rating':'mean','ride_id':'count'})</code>
+keeps the source names, so merging it back produces <code>customer_rating_x</code>,
+<code>customer_rating_y</code>, <code>ride_id_x</code>, <code>ride_id_y</code> — and a later
+<code>groupby('city')['customer_rating_x']</code> is a coin flip between "this ride's rating" and
+"this driver's average rating".</p>
+<p><b>Fix</b> (three lines, all worth it):
+<code>vehicles.drop(columns='driver_id')</code> before the merge, or
+<code>suffixes=("", "_drv")</code> so the left frame keeps its names;
+<code>validate="m:1"</code> on every lookup join, which raises
+<code>MergeError: Merge keys are not unique in right dataset; not a many-to-one merge</code>
+<!-- prov: s22_cab_drill.json:bugs.b8_validate --> instead of quietly multiplying rows; and named
+aggregation, <code>.agg(driver_avg_rating=("customer_rating","mean"), driver_ride_count=("ride_id","count"))</code>,
+which cannot collide because you chose the names. Worked in full in §22.1.9.</p></li>
+
+<li><p><b>Two frames in one expression.</b> <code>df_r['fare_amount'] / df['distance_km']</code>
+takes the numerator from the enriched frame and the denominator from the one before the aggregate
+merge. pandas aligns the two Series <em>on their index</em> and returns a result without a murmur, so
+it is correct exactly as long as the two indexes still agree — and wrong, silently, from the first
+filter, sort, <code>drop_duplicates</code> or <code>reset_index</code> onwards. In the check run,
+dividing by a reordered copy of the <em>same eight rows</em> changed 7 of 8 values and produced two
+<code>inf</code>s <!-- prov: s22_cab_drill.json:bugs.b9_disagree_rows -->
+<!-- prov: s22_cab_drill.json:bugs.b9_cross_frame -->; the honest single-frame version gives
+<code>24.19, 29.03, NaN, 4.74</code> <!-- prov: s22_cab_drill.json:bugs.b9_same_frame -->.</p>
+<p><b>Fix:</b> <code>df['fare_per_km'] = (df['fare_amount'] / df['distance_km']).where(df['distance_km'] &gt; 0)</code>
+— one frame on both sides, plus the guard that keeps a 0 km cancelled ride from becoming
+<code>inf</code>. Scan every arithmetic line for two different frame names before you move on; it is
+a two-second check that has no false positives.</p></li>
+</ol>
+
+<p><b>The pattern across all nine.</b> Six of them never raise. What separates the silent six from a
+correct notebook is not knowledge of pandas — it is three habits that cost one line each:
+<code>print(df.shape)</code> after every join and concat, <code>value_counts(dropna=False)</code>
+after every fill, and <code>dtypes</code> before every encoder. Under a two-hour clock those three
+lines are the cheapest marks on the paper (§22.6.7).</p>
 </div></details>
 
 <hr>
