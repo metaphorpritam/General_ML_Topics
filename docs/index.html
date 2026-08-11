@@ -252,7 +252,7 @@ try { var _s = localStorage.getItem('mlv6_theme'); if (_s) document.documentElem
 </script>
 <script>
 /* ============ widget engine W (inlined in <head> so body widget scripts find it) ============ */
-/* widgets engine W — shared by every interactive lab in these notes.
+/* widgets engine W - shared by every interactive lab in these notes.
  * Inlined in <head> so body widget scripts always find it (pitfall P29).
  * API: W.fmt W.val W.set W.bindAll W.niceBounds W.plot W.cells
  * Canvases are white plates in both themes; colors below are baked for white. */
@@ -379,7 +379,7 @@ const W = (() => {
     });
   }
 
-  /* cells(canvasId, M, opts) — draw matrix M (array of rows) as a colored cell grid.
+  /* cells(canvasId, M, opts) - draw matrix M (array of rows) as a colored cell grid.
    * opts: {x0,y0,cell, showVals, vmin, vmax, color:'blue'|'diverge'|'heat',
    *        rowLabels, colLabels, highlight:[[r,c],...], title, decimals}
    * Returns geometry {x0,y0,cell,rows,cols} so callers can overlay. */
