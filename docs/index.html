@@ -17988,6 +17988,278 @@ Whichever I use, it goes inside the Pipeline so it refits on every CV fold, and 
 with permutation importance on held-out data."</em> That sentence contains the table, the cost
 argument and the leakage rule, which is everything the question is asking for.</div>
 
+<h4>22.2.12 &nbsp; Discretization: continuous → categorical</h4>
+
+<p>§22.2.10 spent its length turning labels into numbers. This is the move in the other direction —
+take a continuous column and replace it with a handful of ordered bands — and it is the only transform
+in the whole cleaning arc that <b>discards information on purpose</b>. That is not a reason never to do
+it; it is a reason to be able to finish the sentence. <em>"I binned age into groups"</em> is half an
+answer, and the half the grader is waiting for is <b>what you bought with the loss</b>.</p>
+
+<p><b>Four things worth buying.</b></p>
+<ul>
+<li><b>Interpretability, and the scorecard.</b> A coefficient on raw age is a claim about <em>one extra
+year</em>, which nobody outside the model can act on. A coefficient on a band is a row in a table —
+"35–59: +0.4 in log-odds against the 18–24 reference" — and that table is a credit scorecard, a pricing
+tier, an eligibility rule. §21.4's ledger sells logistic regression on exactly this ("signed
+coefficients"); bands are what make the coefficients speak in the customer's language. Bands are also a
+<em>monitoring</em> unit: the share of applications falling in each band is comparable month to month,
+which is what a population-stability index is computed on, and "band 4 has grown from a fifth to a
+third of applications" is a sentence a business can be handed.</li>
+<li><b>A linear model can now bend.</b> Logistic regression is linear in the log-odds: risk must move in one direction at a constant rate per year. Cut age
+into $K$ bands, feed the dummies, and the fitted function becomes a
+<b>step function</b> — one free level per band, any shape at all, U-shaped risk included — without your
+having to guess a polynomial degree or a spline knot. This is the strongest technical argument for
+binning and the one to give first. The price is $K-1$ extra parameters, no smoothness, and no
+extrapolation past the outer edges.</li>
+<li><b>Robustness to outliers and heavy tails.</b> The top band absorbs the tail: an income of ten
+lakh and an income of ten crore are both "top band", so no single row can drag a coefficient, and a
+surviving <code>9999</code> sentinel becomes one more member of the
+highest bin rather than a leverage point. Same instinct as <code>RobustScaler</code>, with a blunter instrument — and no substitute for actually fixing
+the sentinel.</li>
+<li><b>The bands are the deliverable.</b> Age groups, income brackets, "5–9 employees": privacy rules,
+survey design and reporting standards all hand you pre-binned columns or demand binned output back. If
+the answer has to be a band, model on bands and skip the argument.</li>
+</ul>
+
+<p><b>Three situations where it is simply wrong.</b></p>
+<ul>
+<li><b>Information loss, concentrated at the boundaries.</b> Inside a band the model is flat: 25 and 34
+become the same customer. Across a boundary it is a cliff: 34 and 35 are treated differently although
+nothing distinguishes them. Every edge you draw is a discontinuity you have to defend to whoever lands
+on the wrong side of it, and the two failure modes trade off against each other — few bins lose more
+within-band information, many bins put more people near an edge and leave each band with too few rows
+to estimate its level.</li>
+<li><b>Boosters already bin, and bin better.</b> Histogram-based boosters bucket every feature
+internally before searching for splits — that is precisely what <code>tree_method="hist"</code> and
+<code>max_bin</code> do — and a tree may then cut the same
+column at a <em>different</em> threshold in every branch. Hand-binning first gives them a coarser
+column with fewer candidate thresholds and no way to recover the resolution. Note that this is a
+<em>different</em> statement from §22.2.9's "trees don't need scaling": a tree is invariant to any
+monotone map, but binning is not monotone, it is many-to-one, and the collapsed part is exactly what
+the model cannot get back.</li>
+<li><b>Choosing the edges on the full data is leakage.</b> Quantile edges are a learned statistic like
+any median or mean, so <code>pd.qcut(df["income"], 10)</code> on the whole frame lets the test rows
+position their own deciles. It is the golden-rule violation opening §22.2 wearing a new hat, and
+§21.7's mechanism exactly: fit the edges on train, apply them to test, and put the object that does so
+inside the <code>Pipeline</code>.</li>
+</ul>
+
+<div class="scrollx">
+<table>
+<caption>The four routes to a binned column. $K$ = number of bins</caption>
+<thead><tr><th>Route</th><th>Bins chosen by</th><th>Returns</th><th>Reach for it when — and the detail that decides it</th></tr></thead>
+<tbody>
+<tr><td><b>Equal width / your edges</b><br><code>pd.cut(s, bins=K)</code><br><code>pd.cut(s, bins=[…])</code></td>
+<td><b>Width.</b> $K$ spans of identical length across the observed range, or the exact edges you name</td>
+<td>an <b>ordered</b> <code>Categorical</code> of <code>Interval</code>s; <code>labels=[…]</code> names
+them, <code>labels=False</code> gives integer codes</td>
+<td>the edges are a <em>domain</em> decision — statutory age bands, a pricing ladder — or you want
+equal spans for a histogram-like read. Two switches carry all the trouble: <code>right=</code> chooses
+$(a,b]$ (default) versus $[a,b)$, and with the default the minimum value falls outside the first
+interval and becomes <code>NaN</code> unless <code>include_lowest=True</code>. Anything beyond the
+outer edges is <code>NaN</code> — loud, and usually what you want</td></tr>
+<tr><td><b>Equal frequency</b><br><code>pd.qcut(s, q)</code></td>
+<td><b>Count.</b> $q$ quantiles, so roughly $n/q$ rows per bin; the data picks the edges</td>
+<td>the same ordered <code>Categorical</code>, with quantile-valued interval edges</td>
+<td>the column is skewed and you want populated bins — deciles of income, quintiles of spend. The
+gotcha is ties: if a quantile repeats (a floor at zero, a spiky discrete column) it raises
+<code>Bin edges must be unique</code>, and <code>duplicates="drop"</code> merges the repeats so you
+<b>silently get fewer than $q$ bins</b>. Print <code>.cat.categories.size</code> back</td></tr>
+<tr><td><b>From scratch</b><br><code>np.digitize(x, edges)</code><br><code>np.searchsorted(edges, x)</code></td>
+<td><b>Whatever edge array you hand it</b> — it computes nothing</td>
+<td>a plain integer array of codes; no vocabulary object, no dtype surprises</td>
+<td>you already <em>have</em> the edges — learned on train, read from a policy document, produced by
+the tree below — and need to apply them to an array, in a loop, or in code that must not depend on
+pandas. The only subtlety is the boundary convention:
+<code>digitize(…, right=True)</code> is <code>searchsorted(…, side="left")</code> is
+<code>pd.cut</code>'s default $(a,b]$, and it sends every value sitting exactly on an edge one bin
+down</td></tr>
+<tr><td><b>Pipeline-safe</b><br><code>KBinsDiscretizer(n_bins, encode=…, strategy=…)</code></td>
+<td><b>Whichever you ask for:</b> <code>strategy="uniform"</code> (width),
+<code>"quantile"</code> (count), <code>"kmeans"</code> (1-D k-means, so density)</td>
+<td><code>encode="ordinal"</code> → one integer column; <code>"onehot"</code>/<code>"onehot-dense"</code>
+→ $K$ dummy columns, no <code>get_dummies</code> needed</td>
+<td><b>the default answer, because it is the only route with <code>fit</code>/<code>transform</code></b>
+— the edges are learned in <code>fit</code> on the training fold, stored in <code>bin_edges_</code>,
+and reapplied in <code>transform</code>. Test values outside the learned range are <b>clipped</b> into
+the end bins rather than raising or going <code>NaN</code>, which is quieter than
+<code>pd.cut</code>'s behaviour and worth saying out loud</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="summary"><b>Interpretation — the table is really two decisions.</b> First, <b>who picks the
+edges</b>: you (domain bands, defensible, arbitrary), the marginal distribution (equal width or equal
+frequency, cheap, target-blind), or the target (the supervised route below, strongest and most
+leak-prone). Second, <b>does the object know how to be refitted</b>: <code>pd.cut</code> and
+<code>pd.qcut</code> are functions with no memory, so leakage-safety is on you — freeze the edge array
+on train and reuse that same array on test, the frozen-<code>Series</code> pattern of §22.2.10 —
+whereas <code>KBinsDiscretizer</code> is an estimator and a <code>Pipeline</code> step, so cross-validation
+refits it per fold for free. In a timed test, use <code>qcut</code> to <em>look</em> at a column and
+<code>KBinsDiscretizer</code> to <em>model</em> with it.</div>
+
+<p><b>Supervised binning, the one route that uses $y$.</b> Equal width and equal frequency both ignore
+the target, so nothing stops an edge landing in the middle of the one region where risk actually turns.
+The fix is to let a model find the edges: fit a depth-limited decision tree on that single feature against $y$, and take its split thresholds as the
+bin edges — the tree is choosing exactly the cuts that most reduce impurity, which is the definition of
+"bands that separate the target". This is the classical credit-scorecard workflow, and it usually
+continues one step further into <b>weight of evidence</b>: replace each band by
+$\text{WOE}_b=\ln\!\big(\tfrac{\text{share of goods in }b}{\text{share of bads in }b}\big)$, which puts
+the band on a log-odds scale so a logistic regression reads it as a single monotone column, with
+information value $\sum_b(\text{good}_b-\text{bad}_b)\,\text{WOE}_b$ as the per-feature score. All of it
+consumes the label, so all of it is a fitted transformer: the tree, the edges and the WOE table must be
+learned inside the CV pipeline, on the training part of each fold, or you have rebuilt §22.2.10's
+target-encoding leak with more steps.</p>
+
+<div class="note"><b>The whole supervised binner, four lines.</b>
+<pre><code>from sklearn.tree import DecisionTreeClassifier
+
+t     = DecisionTreeClassifier(max_leaf_nodes=4, min_samples_leaf=50).fit(X_tr[["age"]], y_tr)
+edges = np.sort(t.tree_.threshold[t.tree_.feature &gt;= 0])   # the split points ARE the bin edges
+bands = pd.cut(X_tr["age"], [-np.inf, *edges, np.inf])     # open-ended ends -&gt; no test row can be NaN
+</code></pre>
+<code>max_leaf_nodes</code> is your bin count and <code>min_samples_leaf</code> is the "no band smaller
+than this" rule that stops the tree carving out a five-row band with a spectacular rate;
+<code>feature &gt;= 0</code> filters out the leaves, whose <code>threshold</code> entry is the sentinel
+$-2$. Wrap those four lines in a <code>FunctionTransformer</code> or a small custom transformer and
+they become a pipeline step; leave them at the top of the notebook and they are a leak.</div>
+
+<div class="warn"><b>The three binning sins.</b>
+<ul>
+<li><b>Edges fitted on the full frame.</b> <code>pd.qcut(df["x"], 10)</code> before the split, or
+<code>KBinsDiscretizer().fit(X)</code> on everything — the deciles are then a function of the rows you
+are about to be scored on, exactly like the leaked median in §22.2's golden-rule box. Worse than the
+median case in one respect: the <em>bin definitions</em> differ between what you validated and what you
+would ship, so the offline number describes a model that never existed. Fix: the discretizer is a
+<code>Pipeline</code> step, or the edge array is computed on train and frozen.</li>
+<li><b>qcut on heavily tied data.</b> Ask for ten bins on a column that is 40% zeros and you get
+<code>ValueError: Bin edges must be unique</code>; type <code>duplicates="drop"</code> to make the
+error go away and you have silently changed $K$. Two consequences, both real: the column no longer has
+the number of levels your feature-count assumed, and if you call <code>qcut</code> separately on train
+and on test, the two frames can end up with a <em>different number of differently-defined</em> bins —
+§22.2.10's <code>get_dummies</code> column-mismatch bug in a new costume. Assert the bin count.</li>
+<li><b>Binning features destined for a GBDT.</b> You are pre-coarsening a model that already bins
+internally, per feature and per branch. The usual cost is a small,
+consistent loss of accuracy that you never notice because you never ran the unbinned version beside it.
+Bin for the linear model in the bake-off if you must, in that model's
+own branch of the preprocessing — not in the frame both models share.</li>
+</ul>
+</div>
+
+<details class="code"><summary>Code — <code>cut</code>, <code>qcut</code> and <code>digitize</code> on the same column (pandas / numpy)</summary>
+<pre><code>import numpy as np, pandas as pd
+from sklearn.linear_model import LogisticRegression
+
+ages = pd.Series([18, 22, 25, 29, 34, 35, 41, 47, 52, 60, 63, 71], name="age")
+
+# ====== 1. pd.cut, EQUAL WIDTH: you fix the SPANS, the counts land where they land ======
+w = pd.cut(ages, bins=4, labels=["W1", "W2", "W3", "W4"])
+print(pd.cut(ages, bins=4).cat.categories)    # (17.947, 31.25] ... : pandas nudges the LOWEST edge
+print(w.value_counts().sort_index().to_dict())  # down by 0.1% so the min is not NaN. Spans equal, counts NOT
+
+# ====== 2. pd.cut, YOUR edges: the version you can defend ======
+EDGES = [18, 25, 35, 60, 100]                 # domain bands; anything outside them -&gt; NaN, loudly
+band  = pd.cut(ages, EDGES, right=False,      # right=False -&gt; [18, 25), [25, 35), [35, 60), [60, 100)
+               labels=["18-24", "25-34", "35-59", "60+"])
+print(band.dtype, "| NaN:", band.isna().sum())          # ordered Categorical, nothing lost
+print("NaN with right=True:", pd.cut(ages, EDGES).isna().sum())   # 1 -- the 18-year-old, because 18 is
+# not INSIDE (18, 25]. include_lowest=True rescues exactly that row; right=False never asks the question.
+
+# ====== 3. pd.qcut, EQUAL FREQUENCY: you fix the COUNTS, the data picks the edges ======
+print(pd.qcut(ages, 4).cat.categories)                  # quartile edges, read off this column
+print(pd.qcut(ages, 4, labels=False).tolist())          # labels=False -&gt; integer codes 0..3
+
+spiky = pd.Series([0] * 8 + [1, 2, 3, 9])     # a floor at zero: two thirds of the mass is ONE value
+# pd.qcut(spiky, 4)                           # ValueError: Bin edges must be unique
+print(pd.qcut(spiky, 4, duplicates="drop").cat.categories.size, "bins, not 4")   # merged, silently
+
+# ====== 4. numpy: the same cut, integer codes, no pandas ======
+x    = ages.to_numpy()
+code = np.digitize(x, EDGES, right=False) - 1           # right=False: EDGES[i] &lt;= x &lt; EDGES[i+1]
+print(np.array_equal(code, band.cat.codes.to_numpy()))  # True -- identical to pd.cut(right=False)
+print(np.array_equal(np.searchsorted(EDGES, x, side="right") - 1, code))     # True -- the same function
+# The convention is the ONLY difference: digitize(right=True) == searchsorted(side="left") == pd.cut's
+# DEFAULT (a, b], which moves every value sitting exactly ON an edge one bin down (here 18 -&gt; code -1).
+
+# ====== 5. bands -&gt; dummies -&gt; a linear model that can now bend ======
+D = pd.get_dummies(band, prefix="age", drop_first=True, dtype="int8")   # K-1: "18-24" is the reference
+print(list(D.columns))                        # ['age_25-34', 'age_35-59', 'age_60+']
+LogisticRegression(max_iter=1000).fit(D, y)   # 3 coefficients = 3 log-odds contrasts against 18-24;
+# age is now a STEP function: flat inside a band, a jump at every edge. That is the buy AND the cost.
+</code></pre>
+<p class="wnote">Three calls, three different questions: <code>cut</code> with a bin count asks "equal
+spans", <code>cut</code> with an edge list asks "these spans", <code>qcut</code> asks "equal crowds".
+The <code>digitize</code> check in block 4 is worth typing on the day even though it always passes — it
+is how you convince yourself (and the grader) that the numpy codes and the pandas categories mean the
+same thing before you hand either to a model, and it is the moment to say out loud which
+<code>right=</code> convention you are in.</p>
+</details>
+
+<details class="code"><summary>Code — <code>KBinsDiscretizer</code> inside a <code>Pipeline</code>: three strategies, edges from train only (sklearn)</summary>
+<pre><code>import numpy as np, pandas as pd
+from sklearn.compose import ColumnTransformer
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import cross_val_score, train_test_split
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import KBinsDiscretizer
+
+rng    = np.random.default_rng(0)
+income = rng.lognormal(mean=10.5, sigma=0.9, size=800)     # the classic skewed money column
+X      = pd.DataFrame({"income": income})
+y      = (rng.random(800) &lt; 1 / (1 + np.exp(-(np.log(income) - 10.5)))).astype(int)
+
+# ---- Three strategies, one column, same K, very different edges ----
+for strat in ("uniform", "quantile", "kmeans"):
+    kb     = KBinsDiscretizer(n_bins=5, encode="ordinal", strategy=strat, subsample=None).fit(X)
+    counts = np.bincount(kb.transform(X)[:, 0].astype(int), minlength=5)
+    print(f"{strat:9s}", kb.bin_edges_[0].round(0), counts)
+# uniform  : equal WIDTH  -&gt; the long tail owns four near-empty bins and nearly every row piles into 0
+# quantile : equal COUNT  -&gt; bins widen as the density thins; the default, and the right one for money
+# kmeans   : 1-D k-means on the values -&gt; edges fall in the sparse GAPS between clumps, so the widths
+#            follow the density. Reach for it when the column is multi-modal, not merely skewed.
+
+# ---- Pipeline-safe: the edges are refitted on the training part of EVERY fold ----
+X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.25, random_state=0, stratify=y)
+pipe = Pipeline([
+    ("bin", KBinsDiscretizer(n_bins=5, encode="onehot-dense",     # "ordinal" hands the model a RANK;
+                             strategy="quantile", subsample=None)),  # one-hot for a linear model
+    ("clf", LogisticRegression(max_iter=1000)),      # K dummies -&gt; a step function of income
+])
+print(cross_val_score(pipe, X_tr, y_tr, cv=5, scoring="roc_auc").mean())
+pipe.fit(X_tr, y_tr)
+
+# ---- bin_edges_ is the artefact you report, not "I used 5 bins" ----
+edges = pipe.named_steps["bin"].bin_edges_[0]
+print(edges.round(0))                            # quantiles of the TRAINING incomes only
+print(pipe.named_steps["bin"].transform(pd.DataFrame({"income": [1e9, 0.0]})))
+# Both rows come back as valid one-hot bins: transform CLIPS anything outside the learned range into
+# the end bins instead of raising, so the top bin quietly means "at least the largest income seen in
+# training" -- pd.cut would have returned NaN here, which is louder and sometimes what you want.
+
+# ---- In a real frame: bin one column, leave the rest alone ----
+X2 = X_tr.assign(age=rng.integers(18, 75, len(X_tr)).astype(float))
+ct = ColumnTransformer([("bin", KBinsDiscretizer(n_bins=4, encode="onehot-dense",
+                                                 strategy="quantile", subsample=None), ["income"])],
+                       remainder="passthrough")
+print(ct.fit_transform(X2).shape, list(ct.get_feature_names_out()))   # bin__income_0.0 ... remainder__age
+</code></pre>
+<p class="wnote">Run the strategy loop and the point makes itself: on a lognormal column
+<code>uniform</code> puts almost every row in the first bin and spends the other four on a handful of
+rich outliers, <code>quantile</code> gives five equal crowds with widths that grow through the tail, and
+<code>kmeans</code> lands somewhere between the two by following the density. All three are computed
+from the training rows only once the object is a <code>Pipeline</code> step — which is the entire reason
+to prefer this route over a <code>qcut</code> at the top of the notebook, and the one sentence to say
+when asked why you did not just use pandas.</p>
+</details>
+
+<div class="summary"><b>The one-line answer.</b> <em>"Binning buys interpretable bands and lets a linear
+model fit a step function through a non-linear effect; it costs the within-band variation and puts a
+discontinuity at every edge. <code>cut</code> is equal width or my edges, <code>qcut</code> is equal
+frequency, <code>digitize</code> applies edges I already have, and <code>KBinsDiscretizer</code> is the
+one with <code>fit</code>/<code>transform</code>, so it is the one that goes in the Pipeline and learns
+its edges on train only. I do not bin for a booster — it bins better internally."</em></div>
+
 <h3>22.3 &nbsp; Datetime &amp; time-series preprocessing</h3>
 
 <p>Q1 and Q2 both hand you a date column, and in both of them the date column is the one people lose
@@ -20102,7 +20374,7 @@ before changing anything: nine times in ten the fix is a single <code>[:, None]<
 <tr><td class="num">3</td><td><code>s.map({"a": 1, "b": 2})</code></td><td>dictionary lookup; unmapped values become <code>NaN</code> (usually what you want)</td></tr>
 <tr><td class="num">4</td><td><code>s.replace({"bengaluru": "bangalore"})</code></td><td>collapse synonyms, leaving everything else alone</td></tr>
 <tr><td class="num">5</td><td><code>pd.cut(s, bins=[0, 200, 500])</code></td><td>bin on <b>fixed edges</b> you choose</td></tr>
-<tr><td class="num">6</td><td><code>pd.qcut(s, 10, labels=False, duplicates="drop")</code></td><td>bin into <b>equal counts</b> — deciles</td></tr>
+<tr><td class="num">6</td><td><code>pd.qcut(s, 10, labels=False, duplicates="drop")</code></td><td>bin into <b>equal counts</b> — deciles; <code>duplicates="drop"</code> can silently return fewer</td></tr>
 <tr><td class="num">7</td><td><code>pd.get_dummies(df, columns=[...], drop_first=True)</code></td><td>quick one-hot outside a pipeline; <code>drop_first</code> only for linear models</td></tr>
 <tr><td class="num">8</td><td><code>a.merge(b, on="k", how="left", validate="m:1")</code></td><td>join, with the cardinality asserted</td></tr>
 <tr><td class="num">9</td><td><code>pd.concat([a, b], ignore_index=True)</code></td><td>stack rows; <code>axis=1</code> to stack columns (aligns on index!)</td></tr>
