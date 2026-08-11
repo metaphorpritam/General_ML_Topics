@@ -18053,24 +18053,121 @@ bug; a date that failed because the cell says "not available" is a missing value
 
 <div class="scrollx">
 <table>
-<caption>The format codes worth memorising</caption>
+<caption>Datetime format codes — the consolidated reference. Every example cell is
+<code>strftime</code>'d from the one instant <code>2025-03-15 18:30:45</code>, a Saturday
+<!-- prov: s22_timeseries.json:dt_format_codes -->
+<!-- prov: s22_timeseries.json:dt_format_ref_instant --></caption>
 <thead><tr><th>Code</th><th>Means</th><th>Example</th><th>Code</th><th>Means</th><th>Example</th></tr></thead>
 <tbody>
 <tr><td><code>%d</code></td><td>day of month, zero-padded</td><td><code>15</code></td>
-    <td><code>%H</code></td><td>hour, 24-hour clock</td><td><code>18</code></td></tr>
-<tr><td><code>%m</code></td><td>month number</td><td><code>03</code></td>
-    <td><code>%I</code></td><td>hour, 12-hour clock</td><td><code>06</code></td></tr>
-<tr><td><code>%Y</code></td><td>4-digit year</td><td><code>2025</code></td>
-    <td><code>%M</code></td><td>minute</td><td><code>30</code></td></tr>
-<tr><td><code>%y</code></td><td>2-digit year</td><td><code>25</code></td>
     <td><code>%S</code></td><td>second</td><td><code>45</code></td></tr>
+<tr><td><code>%m</code></td><td>month number, zero-padded</td><td><code>03</code></td>
+    <td><code>%b</code></td><td>month name, abbreviated</td><td><code>Mar</code></td></tr>
+<tr><td><code>%Y</code></td><td>year, 4-digit</td><td><code>2025</code></td>
+    <td><code>%B</code></td><td>month name, full</td><td><code>March</code></td></tr>
+<tr><td><code>%y</code></td><td>year, 2-digit</td><td><code>25</code></td>
+    <td><code>%a</code></td><td>weekday name, abbreviated</td><td><code>Sat</code></td></tr>
+<tr><td><code>%H</code></td><td>hour, 24-hour clock</td><td><code>18</code></td>
+    <td><code>%A</code></td><td>weekday name, full</td><td><code>Saturday</code></td></tr>
+<tr><td><code>%I</code></td><td>hour, 12-hour clock</td><td><code>06</code></td>
+    <td><code>%j</code></td><td>day of year, 001–366</td><td><code>074</code></td></tr>
+<tr><td><code>%p</code></td><td>AM / PM marker</td><td><code>PM</code></td>
+    <td><code>%U</code></td><td>week of year, Sunday-start, 00–53</td><td><code>10</code></td></tr>
+<tr><td><code>%M</code></td><td>minute</td><td><code>30</code></td>
+    <td><code>%z</code></td><td>UTC offset, ±HHMM — needs a tz-aware stamp</td><td><code>+0530</code></td></tr>
 </tbody>
 </table>
 </div>
 
-<p>Two of those collide in a way worth saying out loud: <code>%m</code> is the month and
-<code>%M</code> is the minute, <code>%y</code> is two digits and <code>%Y</code> is four. A format
-string that swaps either pair does not error — it produces plausible, wrong dates.</p>
+<p>Four collisions in that table are worth saying out loud. <code>%m</code> is the month and
+<code>%M</code> is the minute; <code>%y</code> is two digits and <code>%Y</code> is four — a format
+string that swaps either pair does not error, it produces plausible, wrong dates. <code>%H</code> and
+<code>%I</code> differ only at 13:00 and after, so a 12-hour format without <code>%p</code> loses the
+afternoon silently. And <code>%U</code> is <em>not</em> the ISO week: the same instant is
+<code>%U</code> = 10 <!-- prov: s22_timeseries.json:dt_U_week --> but ISO week
+11 <!-- prov: s22_timeseries.json:dt_iso_week --> <!-- prov: s22_timeseries.json:dt_U_vs_iso_differ -->,
+because <code>%U</code> starts its weeks on Sunday and calls the days before the year's first Sunday
+"week 00", while <code>isocalendar()</code> starts on Monday and has no week 0. Use
+<code>isocalendar().week</code> (§22.3.2) for anything you will group by. One last trap:
+<code>%z</code> on a <em>naive</em> timestamp renders as the empty string
+<code>''</code> <!-- prov: s22_timeseries.json:dt_format_z_naive -->, not as
+<code>+0000</code> — it is not a claim that the data is UTC, it is a statement that the column has no
+timezone at all.</p>
+
+<details class="code"><summary>Code — parsing anything: the eight recipes, and the one that goes the other way</summary>
+<pre><code># --- 1. EXPLICIT FORMAT — the default choice. Unambiguous, and it refuses to guess.
+pd.to_datetime(s, format="%d-%m-%Y")
+pd.to_datetime(s, format="%d-%m-%Y %H:%M:%S")
+
+# --- 2. DAY-FIRST vs MONTH-FIRST — 05/02/2023 is two different dates (§22.1.8)
+pd.to_datetime(s, dayfirst=True)      # 5 February
+pd.to_datetime(s, dayfirst=False)     # 2 May       &lt;- pandas' default
+
+# --- 3. EPOCHS — an integer column is not a date until you name the unit
+pd.to_datetime(1710000000,    unit="s")    # -&gt; 2024-03-09 16:00:00   (epoch = 1970-01-01 UTC)
+pd.to_datetime(1710000000000, unit="ms")   # -&gt; the SAME instant
+pd.to_datetime(45731, unit="D", origin="1899-12-30")   # Excel serial -&gt; 2025-03-15
+pd.to_datetime(30,    unit="D", origin="2025-01-01")   # days since a custom epoch
+
+# --- 4. ISO 8601 — one flag for the whole family ('T' or space, offsets, fractional seconds)
+pd.to_datetime(s, format="ISO8601")
+
+# --- 5. GENUINELY MIXED formats in one column   (pandas &gt;= 2.0)
+pd.to_datetime(s, format="mixed", dayfirst=True)   # per-element guessing — the slow path
+
+# --- 6. SURVIVE the junk, then MEASURE the damage
+d = pd.to_datetime(s, format="%d-%m-%Y", errors="coerce")   # unparseable -&gt; NaT
+print("parse rate:", d.notna().mean())
+
+# --- 7. TIMEZONES, when the data spans offsets
+pd.to_datetime(s, utc=True)                   # parse everything to UTC, tz-aware
+d.dt.tz_localize("Asia/Kolkata")              # naive -&gt; aware   (%z now renders)
+d.dt.tz_convert("UTC").dt.tz_localize(None)   # aware -&gt; naive, AFTER converting
+
+# --- 8. THE OTHER DIRECTION: datetime -&gt; text. Display only, at the very end.
+d.dt.strftime("%d/%m/%Y")     # dtype object — the .dt accessor is gone (§22.3.9)</code></pre>
+<p class="wnote">Recipe 3 is the one people freeze on. <code>1710000000</code> with
+<code>unit="s"</code> and <code>1710000000000</code> with <code>unit="ms"</code> parse to the identical
+instant <code>2024-03-09 16:00:00</code>
+<!-- prov: s22_timeseries.json:parse_epoch_s --><!-- prov: s22_timeseries.json:parse_epoch_ms -->
+<!-- prov: s22_timeseries.json:parse_epoch_equal -->; the only question a raw integer column ever asks
+is <em>which unit</em>, and a ten-digit integer is seconds while a thirteen-digit one is milliseconds.
+<code>origin=</code> moves the zero point: <code>45731</code> with <code>unit="D"</code> and
+<code>origin="1899-12-30"</code> is the Excel serial for
+<code>2025-03-15</code> <!-- prov: s22_timeseries.json:parse_excel_serial -->, and
+<code>origin="2025-01-01"</code> turns a "days since launch" column into real dates
+<!-- prov: s22_timeseries.json:parse_days_since_origin -->. Recipe 5 is a <em>fallback</em>, not a
+default: on the three-element list <code>["2025-03-15", "15/03/2025", "March 15, 2025"]</code> only
+<code>format="mixed"</code> parses all three (all to <code>2025-03-15</code>, with
+<code>dayfirst=True</code>) <!-- prov: s22_timeseries.json:parse_mixed_input -->
+<!-- prov: s22_timeseries.json:parse_mixed_values -->, while plain <code>pd.to_datetime</code> locks
+onto the first element's format and dies at position 1 with
+<code>ValueError: time data "15/03/2025" doesn't match format "%Y-%m-%d"</code>
+<!-- prov: s22_timeseries.json:parse_no_format_on_mixed -->.</p>
+</details>
+
+<div class="note"><b>What <code>format=</code> costs, measured — and the one place the usual advice is
+wrong.</b> On 20,000 <em>distinct</em> date strings
+<!-- prov: s22_timeseries.json:parse_bench_n --> (distinct matters: pandas caches repeated strings, so
+a benchmark on duplicates measures nothing), parsing an ISO column runs at 2.49 ms with
+<code>format="ISO8601"</code>, 3.00 ms with an explicit <code>format="%Y-%m-%d"</code>, 3.09 ms with no
+format at all, and 5.28 ms with <code>format="mixed"</code>
+<!-- prov: s22_timeseries.json:parse_bench_iso --><!-- prov: s22_timeseries.json:parse_bench_iso_fastest_is_iso8601 -->.
+That ordering is the usual advice and it holds. The number that actually matters is the next one: on a
+column that is <em>genuinely</em> heterogeneous, <code>format="mixed"</code> takes 221.31 ms — about
+89× the ISO8601 path <!-- prov: s22_timeseries.json:parse_bench_hetero -->
+<!-- prov: s22_timeseries.json:parse_bench_mixed_cost_ratio --> — and it is simultaneously the only one
+of the three calls that succeeds at all, both alternatives raising <code>ValueError</code> on the first
+element that disagrees with the format they locked onto. <b>The adjudication:</b> on homogeneous
+<em>non-ISO</em> strings the advice inverts — <code>format="mixed"</code> parsed the
+<code>%d-%m-%Y</code> column in 6.01 ms against the explicit format's 21.01 ms
+<!-- prov: s22_timeseries.json:parse_bench_dmy -->
+<!-- prov: s22_timeseries.json:parse_bench_dmy_mixed_beats_explicit -->, because
+<code>array_strptime</code> walks a non-ISO format element by element while the mixed path reaches the
+C guesser's fast route <!-- prov: s22_timeseries.json:parse_format_cost_note -->. So state the rule as
+what it really is: <em>an explicit format buys correctness first — it is the only thing that stops
+<code>05/02</code> from silently becoming the wrong date — and speed only incidentally.</em> Timings are
+wall-clock on the build machine; the ratios are the part that travels.</div>
 
 <div class="warn"><b>Without <code>errors="coerce"</code> the whole cell dies.</b> The same probe run
 with the default <code>errors="raise"</code> gives
@@ -18554,6 +18651,258 @@ one mistake you cannot undo without re-parsing.</p>
 features — recency, lifetime
 aggregation, the groupby-diff and the shifted rolling window. They are also the four that leak if you
 get the sort or the shift wrong, which is why §22.4 spends its first subsection on nothing else.</p>
+
+<h4>22.3.11 &nbsp; Lags, differences &amp; returns — the transformation ladder</h4>
+
+<p>§22.3.5 and §22.3.7 introduced <code>shift</code> and <code>diff</code> as two calls among many.
+They are in fact the bottom two rungs of a ladder, and every rung above them is built by <em>dividing</em>
+where the rung below <em>subtracted</em>. The distinction is not cosmetic: the rungs differ in units, in
+whether they are comparable across entities, and in whether they add up over time. Picking the wrong
+rung is the difference between a feature a model can use and one it cannot.</p>
+
+<div class="defn"><b>The four rungs.</b> Let $x_t$ be the value at time $t$, on a frame already sorted
+by <code>[entity, time]</code> — without that sort every formula below is nonsense (§22.3.4).
+$$\text{lag}_k(t) = x_{t-k}\ ,\qquad
+\Delta_k x_t = x_t - x_{t-k}\ ,\qquad
+r^{\text{pct}}_t = \frac{x_t - x_{t-k}}{x_{t-k}} = \frac{x_t}{x_{t-k}} - 1\ ,\qquad
+r_t = \ln\!\frac{x_t}{x_{t-1}}$$
+<div class="scrollx"><table>
+<thead><tr><th>rung</th><th>pandas</th><th>units</th><th>reach for it when</th></tr></thead>
+<tbody>
+<tr><td><b>1 · lag</b> &nbsp;$x_{t-k}$</td>
+<td><code>x.shift(k)</code><br>per entity: <code>g["x"].shift(k)</code></td>
+<td>same as $x$</td>
+<td>the model should see the recent past as <em>levels</em>. The naive forecast <em>is</em>
+<code>lag_1</code>, and the seasonal-naive one is <code>lag_7</code> (§22.4.4)</td></tr>
+<tr><td><b>2 · difference</b> &nbsp;$\Delta_k x_t$</td>
+<td><code>x.diff(k)</code><br>per entity: <code>g["x"].diff(k)</code></td>
+<td>same as $x$, per period</td>
+<td>the level trends but the change does not. Differencing is how a tree that cannot extrapolate
+(§22.4.7) is made to work at all</td></tr>
+<tr><td><b>3 · percentage change</b> &nbsp;$r^{\text{pct}}_t$</td>
+<td><code>x.pct_change(k, fill_method=None)</code></td>
+<td>dimensionless</td>
+<td>entities live on different scales and must be made comparable — a move of 5 units means nothing
+until you know whether $x$ was 10 or 10,000</td></tr>
+<tr><td><b>4 · log return</b> &nbsp;$r_t$</td>
+<td><code>np.log(x).diff()</code></td>
+<td>dimensionless, <em>additive</em></td>
+<td>returns must be summed over time, compared symmetrically, or handed to anything that assumes
+additive noise</td></tr>
+</tbody></table></div>
+Rungs 3 and 4 need $x &gt; 0$; rungs 1 and 2 do not care. Each rung costs you rows at the top: with
+$k=1$ the first row of every entity is <code>NaN</code>, with $k=2$ the first two are — 1 and 2 rows
+respectively on the seven-row series below
+<!-- prov: s22_timeseries.json:lad_nan_rows_lag1 --><!-- prov: s22_timeseries.json:lad_nan_rows_lag2 -->.
+</div>
+
+<details class="code"><summary>Code — the one-liners that build every column in the table below</summary>
+<pre><code># ---- ONE entity: the whole ladder in five lines ------------------------------
+px = px.sort_values("date")                                    # ALWAYS first
+px["lag_1"]      = px["price"].shift(1)                        # rung 1
+px["lag_2"]      = px["price"].shift(2)
+px["diff_1"]     = px["price"].diff()                          # rung 2:  x_t - x_(t-1)
+px["pct_change"] = px["price"].pct_change(fill_method=None)    # rung 3:  x_t / x_(t-1) - 1
+px["log_return"] = np.log(px["price"]).diff()                  # rung 4:  ln(x_t / x_(t-1))
+
+# The log1p identity, proved in one line:
+#   ln(1 + pct) = ln(1 + (x_t/x_(t-1) - 1)) = ln(x_t/x_(t-1)) = log_return   [identical]
+np.log1p(px["price"].pct_change(fill_method=None))     # == np.log(px["price"]).diff()
+
+# ---- MANY entities: the same ladder, never across an entity boundary ---------
+df = df.sort_values(["ticker", "date"])
+g  = df.groupby("ticker")["price"]
+df["lag_1"]      = g.shift(1)
+df["diff_1"]     = g.diff()
+df["pct_change"] = g.pct_change(fill_method=None)
+df["log_return"] = np.log(df["price"]).groupby(df["ticker"]).diff()
+
+# ---- Cumulative growth: two routes, one answer ------------------------------
+(1 + df["pct_change"].fillna(0)).cumprod()      # gross growth multiple
+np.exp(df["log_return"].fillna(0).cumsum())     # identical to floating-point noise
+
+# ---- The one that is a TARGET, not a feature --------------------------------
+df["y_next_ret"] = g.pct_change(fill_method=None).shift(-1)    # negative shift = the FUTURE</code></pre>
+<p class="wnote">Three things to type from muscle memory. <code>fill_method=None</code> on every
+<code>pct_change</code> (the reason is the warning box below). <code>np.log(x).diff()</code> rather
+than <code>np.log(x / x.shift(1))</code> — same number, one fewer place to get the shift backwards. And
+for the multi-entity log return, note the shape: <code>np.log</code> is applied to the
+<em>column</em> and the grouping wraps the <code>diff</code>, because <code>groupby</code> objects have
+no <code>np.log</code>.</p>
+</details>
+
+<div class="scrollx">
+<table>
+<caption>The ladder on one deterministic seven-row price series; every cell is a field of the cited
+key <!-- prov: s22_timeseries.json:lad_table -->
+<!-- prov: s22_timeseries.json:lad_n_rows --><!-- prov: s22_timeseries.json:lad_first_price -->
+<!-- prov: s22_timeseries.json:lad_last_price --></caption>
+<thead><tr><th>date</th><th>price</th><th><code>lag_1</code></th><th><code>lag_2</code></th>
+<th><code>diff_1</code></th><th><code>pct_change</code></th><th><code>log_return</code></th></tr></thead>
+<tbody>
+<tr><td>2025-01-06</td><td class="num">100.00</td><td class="num">—</td><td class="num">—</td>
+    <td class="num">—</td><td class="num">—</td><td class="num">—</td></tr>
+<tr><td>2025-01-07</td><td class="num">102.00</td><td class="num">100.00</td><td class="num">—</td>
+    <td class="num">2.00</td><td class="num">0.020000</td><td class="num">0.019803</td></tr>
+<tr><td>2025-01-08</td><td class="num">101.50</td><td class="num">102.00</td><td class="num">100.00</td>
+    <td class="num">−0.50</td><td class="num">−0.004902</td><td class="num">−0.004914</td></tr>
+<tr><td>2025-01-09</td><td class="num">105.00</td><td class="num">101.50</td><td class="num">102.00</td>
+    <td class="num">3.50</td><td class="num">0.034483</td><td class="num">0.033902</td></tr>
+<tr><td>2025-01-10</td><td class="num">103.00</td><td class="num">105.00</td><td class="num">101.50</td>
+    <td class="num">−2.00</td><td class="num">−0.019048</td><td class="num">−0.019231</td></tr>
+<tr><td>2025-01-13</td><td class="num">107.50</td><td class="num">103.00</td><td class="num">105.00</td>
+    <td class="num">4.50</td><td class="num">0.043689</td><td class="num">0.042762</td></tr>
+<tr><td>2025-01-14</td><td class="num">110.00</td><td class="num">107.50</td><td class="num">103.00</td>
+    <td class="num">2.50</td><td class="num">0.023256</td><td class="num">0.022990</td></tr>
+<tr><td><b>column sum</b></td><td class="num">—</td><td class="num">—</td><td class="num">—</td>
+    <td class="num"><b>10.00</b></td><td class="num"><b>0.097478</b>
+    <!-- prov: s22_timeseries.json:lad_sum_pct_change --></td>
+    <td class="num"><b>0.095310</b> <!-- prov: s22_timeseries.json:lad_sum_log_returns --></td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="summary"><b>Interpretation — read the last row, because it is the entire argument for rung
+4.</b> The price went 100.00 → 110.00
+<!-- prov: s22_timeseries.json:lad_first_price --><!-- prov: s22_timeseries.json:lad_last_price -->, so
+the honest total return is exactly 0.1
+<!-- prov: s22_timeseries.json:lad_total_gross_return -->. The <code>pct_change</code> column sums to
+<b>0.0974783131</b> <!-- prov: s22_timeseries.json:lad_sum_pct_change --> — <em>wrong</em>, low by
+0.0025216869 <!-- prov: s22_timeseries.json:lad_pct_sum_error -->, and wrong for a structural reason,
+not a rounding one: percentage changes are ratios against a <em>moving</em> base, so adding them adds
+quantities measured against different denominators. The <code>log_return</code> column sums to
+<b>0.0953101798</b> <!-- prov: s22_timeseries.json:lad_sum_log_returns -->, which is
+$\ln(110/100) = $ <b>0.0953101798</b> <!-- prov: s22_timeseries.json:lad_log_last_over_first --> to
+every digit — the two agree to
+$\,1.7\times10^{-16}$ <!-- prov: s22_timeseries.json:lad_additivity_abs_err -->, i.e. to floating-point
+noise <!-- prov: s22_timeseries.json:lad_additivity_holds -->. That is <b>time-additivity</b>, and it
+falls straight out of the definition: the sum telescopes,
+$\sum_t (\ln x_t - \ln x_{t-1}) = \ln x_T - \ln x_1$. It is why a log-return column can be summed,
+averaged, resampled from daily to monthly, or used as a regression target that you later add back
+up — and why a <code>pct_change</code> column can do none of those things.</div>
+
+<div class="thm"><b>Three identities, all verified — memorise the shapes, not the digits.</b>
+<ul>
+<li><b>Additivity.</b> $\sum_{t} r_t = \ln(x_T/x_1)$. Here both sides are
+0.0953101798 <!-- prov: s22_timeseries.json:lad_sum_log_returns -->
+<!-- prov: s22_timeseries.json:lad_log_last_over_first -->.</li>
+<li><b>The <code>log1p</code> identity.</b>
+$\ln\!\left(1 + r^{\text{pct}}_t\right) = \ln\!\left(1 + \frac{x_t}{x_{t-1}} - 1\right)
+= \ln\frac{x_t}{x_{t-1}} = r_t$, so
+<code>np.log1p(x.pct_change(fill_method=None))</code> and <code>np.log(x).diff()</code> are the
+<em>same column</em>, not two approximations of one — the largest disagreement across all seven rows is
+$\,8.5\times10^{-16}$ <!-- prov: s22_timeseries.json:lad_log1p_identity_max_abs_diff -->
+<!-- prov: s22_timeseries.json:lad_log1p_identity_holds -->. Use whichever the surrounding code makes
+cleaner; <code>log1p</code> is the numerically better one when the returns are tiny.</li>
+<li><b>Cumulative agreement.</b> <code>(1 + pct).cumprod()</code> and
+<code>np.exp(logret.cumsum())</code> both end at
+<b>1.1</b> <!-- prov: s22_timeseries.json:lad_cumprod_last -->
+<!-- prov: s22_timeseries.json:lad_exp_cumsum_last -->, differing by at most
+$\,1.1\times10^{-15}$ across the whole series
+<!-- prov: s22_timeseries.json:lad_cumulative_max_abs_diff -->
+<!-- prov: s22_timeseries.json:lad_cumulative_agree -->. The growth path
+$(1.00,\,1.02,\,1.015,\,1.05,\,1.03,\,1.075,\,1.1)$
+<!-- prov: s22_timeseries.json:lad_cumprod_series --> is what you plot when a question asks for
+"cumulative return"; <b>products for percentages, sums for logs</b>, and never the other pairing.</li>
+</ul></div>
+
+<div class="ex"><b>Why symmetry matters: +10% then −10% is not flat.</b> Take three prices
+100 → 110 → 99 <!-- prov: s22_timeseries.json:lad_asym_prices -->.
+<div class="scrollx"><table>
+<thead><tr><th>step</th><th><code>pct_change</code></th><th><code>log_return</code></th></tr></thead>
+<tbody>
+<tr><td>100 → 110</td><td class="num">+0.1</td><td class="num">+0.0953101798</td></tr>
+<tr><td>110 → 99</td><td class="num">−0.1</td><td class="num">−0.1053605157</td></tr>
+<tr><td><b>sum</b></td><td class="num"><b>0.0</b>
+    <!-- prov: s22_timeseries.json:lad_asym_pct_sum --></td>
+    <td class="num"><b>−0.0100503359</b>
+    <!-- prov: s22_timeseries.json:lad_asym_log_sum --></td></tr>
+</tbody></table></div>
+<!-- prov: s22_timeseries.json:lad_asym_pct --><!-- prov: s22_timeseries.json:lad_asym_log -->
+The percentage changes are numerically symmetric — <code>+0.1</code> and <code>−0.1</code> — and they
+sum to <b>0.0</b> <!-- prov: s22_timeseries.json:lad_asym_pct_sum -->, which reads as "flat". The
+position is <em>not</em> flat: it is down 0.01, a full percent
+<!-- prov: s22_timeseries.json:lad_asym_true_total_pct -->. The log returns are <em>not</em>
+symmetric — the down leg is bigger in magnitude than the up leg, because it is a −10% move applied to a
+larger base — and their sum, <b>−0.0100503359</b>
+<!-- prov: s22_timeseries.json:lad_asym_log_sum -->, is exactly
+$\ln(0.99) = $ <b>−0.0100503359</b> <!-- prov: s22_timeseries.json:lad_ln_099 -->
+<!-- prov: s22_timeseries.json:lad_asym_log_matches_ln099 -->, and
+$e^{\sum r_t} = $ <b>0.99</b> <!-- prov: s22_timeseries.json:lad_asym_exp_log_sum --> recovers the
+gross return on the nose. <b>The point:</b> the loss is <em>invisible</em> in the pct column's sum and
+<em>exposed</em> by the log column's sum. Any feature that aggregates returns — a mean return, a
+rolling sum of returns, a "total move over the window" — is silently biased if it aggregates
+percentages.</div>
+
+<div class="note"><b>…and yet for small moves the two are interchangeable, which is why people confuse
+them.</b> $\ln(1+r) \approx r$ with error $-r^2/2$:</div>
+
+<div class="scrollx">
+<table>
+<caption>How fast the small-move approximation breaks <!-- prov: s22_timeseries.json:lad_small_move --></caption>
+<thead><tr><th><code>pct_change</code></th><th><code>log_return</code></th><th>gap</th><th>verdict</th></tr></thead>
+<tbody>
+<tr><td class="num">0.001</td><td class="num">0.00099950</td><td class="num">−0.0000005</td><td>identical for any practical purpose</td></tr>
+<tr><td class="num">0.01</td><td class="num">0.00995033</td><td class="num">−0.00004967</td><td>0.005 % apart — interchangeable</td></tr>
+<tr><td class="num">0.05</td><td class="num">0.04879016</td><td class="num">−0.00120984</td><td>starting to matter</td></tr>
+<tr><td class="num">0.10</td><td class="num">0.09531018</td><td class="num">−0.00468982</td><td>a 4.7 % relative error — pick deliberately</td></tr>
+<tr><td class="num">0.50</td><td class="num">0.40546511</td><td class="num">−0.09453489</td><td>completely different numbers</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="summary"><b>Interpretation.</b> Below roughly ±2% per period the two columns are the same
+feature and the choice is stylistic. Above that the gap grows like $r^2/2$ and the choice becomes
+substantive — at a 50% move <code>pct_change</code> says 0.5 and the log return says 0.40546511
+<!-- prov: s22_timeseries.json:lad_small_move -->, a 19% relative disagreement. Daily equity or demand
+data usually sits in the interchangeable regime, which is precisely why the habit of reaching for
+<code>pct_change</code> survives; crypto, intraday spikes, sparse-count series and anything you intend
+to <em>sum</em> do not, which is why the habit eventually costs someone a mark.</div>
+
+<div class="warn"><b>Two ways <code>pct_change</code> bites, both verified.</b>
+<ul>
+<li><b>The deprecated implicit <code>fill_method</code>.</b> On pandas ≥ 2.1 a bare
+<code>s.pct_change()</code> emits
+<code>FutureWarning: The default fill_method='pad' in Series.pct_change is deprecated and will be
+removed in a future version</code> <!-- prov: s22_timeseries.json:lad_pct_change_default_warning -->,
+and until it is removed it <em>silently forward-fills your NaNs first</em>. On
+<code>[100, NaN, 110]</code> the implicit version returns
+<code>[NaN, 0.0, 0.1]</code> <!-- prov: s22_timeseries.json:lad_pct_change_implicit_ffill --> —
+inventing a 0% change across a gap that has no observation in it — while
+<code>fill_method=None</code> returns <code>[NaN, NaN, NaN]</code>
+<!-- prov: s22_timeseries.json:lad_pct_change_fill_none -->, which is the truth: you cannot compute a
+change from a value you do not have. <b>Always pass <code>fill_method=None</code></b>, and if you
+genuinely want the gap bridged, do the <code>ffill</code> yourself on the line above so the decision is
+visible in the code.</li>
+<li><b>Division by zero.</b> Rungs 3 and 4 both put $x_{t-1}$ in a denominator. On
+<code>[10, 0, 5]</code> <!-- prov: s22_timeseries.json:lad_zero_prices -->,
+<code>pct_change</code> returns <code>[nan, -1.0, inf]</code>
+<!-- prov: s22_timeseries.json:lad_zero_pct_change --> and the log return returns
+<code>[nan, -inf, inf]</code> <!-- prov: s22_timeseries.json:lad_zero_log_return -->. Neither raises.
+<code>inf</code> then propagates through every downstream mean, scaler and split — and sklearn's
+"Input contains infinity" error surfaces three cells later, far from the cause. Zero-valued periods are
+normal in demand, click and count data, so on those series use rung 2 (<code>diff</code>) or a
+<code>log1p</code> of the level, never a raw ratio. <code>np.isinf(X).sum()</code> belongs in the same
+profiling block as <code>isna().sum()</code> (§22.2.1).</li>
+</ul></div>
+
+<div class="warn"><b>The sign of the shift is the whole leakage question.</b>
+<code>shift(+k)</code> pulls a value <em>forward from the past</em> into row $t$ — that is a feature,
+and it is legitimate. <code>shift(-k)</code> pulls a value <em>backward from the future</em> into row
+$t$ — that is a target, and it is legitimate <em>only</em> on the label column. On the seven-row series,
+<code>price.shift(-1)</code> puts 102.00 — the price of 2025-01-07 — on the row dated 2025-01-06
+<!-- prov: s22_timeseries.json:lad_shift_neg1 --><!-- prov: s22_timeseries.json:lad_shift_neg1_is_future -->,
+where <code>price.shift(1)</code> correctly leaves that first row empty
+<!-- prov: s22_timeseries.json:lad_shift_pos1 -->. <b>A negative shift anywhere in your feature block
+is leakage</b>, and it is the kind that never announces itself: the model trains fine, the validation
+score is excellent, and the test score is excellent too if the split was random — which is exactly why
+§22.4.3's time-ordered split is not optional and why §21.7 states the rule in general. The same applies
+to any unshifted <code>rolling</code> built from the target (§22.3.7) and to a
+<code>fillna</code> whose statistic was computed over the full frame. <b>The audit that takes ten
+seconds:</b> grep your feature-building block for <code>shift(-</code>, for
+<code>.rolling(</code> not preceded by <code>.shift(1)</code>, and for any aggregation fitted before
+the split. If a feature at row $t$ could not have been computed on the evening of day $t$, it does not
+belong in $X$.</div>
 
 <h3>22.4 &nbsp; XGBoost on time series</h3>
 
