@@ -1,4 +1,4 @@
-# ML Handbook — A Practical Guide for Professionals
+# ML Handbook - A Practical Guide for Professionals
 
 A complete, self-contained interactive textbook covering machine learning from first
 principles to practice, in a single web page.
@@ -14,7 +14,7 @@ principles to practice, in a single web page.
   networks & backpropagation → deep architectures → SVMs → PCA → clustering (two
   chapters) → a model-selection playbook → a timed coding-test drill chapter.
 - **Step-by-step derivations** with matrix/tensor shapes annotated at every step.
-- **Worked numerical examples** — every number recomputed programmatically and verified.
+- **Worked numerical examples** - every number recomputed programmatically and verified.
 - **140+ figures**: architecture diagrams, computation graphs, decision flowcharts.
 - **6 interactive labs**: gradient-descent on a loss surface, ROC threshold explorer,
   activation playground, convolution arithmetic explorer, attention-weight visualizer,
@@ -26,7 +26,7 @@ principles to practice, in a single web page.
 ## Usage
 
 Open the page and read top-to-bottom, or jump around via the sidebar. Everything runs
-in the browser — the only external dependency is the MathJax CDN for math rendering.
+in the browser - the only external dependency is the MathJax CDN for math rendering.
 
 ## Structure
 
@@ -38,5 +38,5 @@ docs/
 
 ## Question Bank
 
-Practice companion: **[the Question Bank](https://mlhandbook.pages.dev/test_set)** — 128 MCQs (instant feedback, worked explanations, score tracking) + 50 coding problems checked live in your browser via PyScript, with three progressive hints each. Over half the set drills probability, Bayes' theorem and statistics; includes business-application bands (credit risk, A/B testing, churn/CLV).
+Practice companion: **[the Question Bank](https://mlhandbook.pages.dev/test_set)** - 128 MCQs (instant feedback, worked explanations, score tracking) + 50 coding problems checked live in your browser via PyScript, with three progressive hints each. Over half the set drills probability, Bayes' theorem and statistics; includes business-application bands (credit risk, A/B testing, churn/CLV).
 
