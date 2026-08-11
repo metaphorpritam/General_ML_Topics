@@ -18260,6 +18260,432 @@ frequency, <code>digitize</code> applies edges I already have, and <code>KBinsDi
 one with <code>fit</code>/<code>transform</code>, so it is the one that goes in the Pipeline and learns
 its edges on train only. I do not bin for a booster — it bins better internally."</em></div>
 
+<h4>22.2.13 &nbsp; Measuring association: which correlation for which variable pair</h4>
+
+<p>§22.2.11's filter family and §22.6.8's multicollinearity screen both leaned on one call —
+<code>df.corr()</code> — and both leaned on it quietly. That call has two habits worth saying out loud.
+It <b>silently drops every non-numeric column</b>, so the frame you just cleaned in §22.2.3 and encoded
+in §22.2.10 contributes nothing to the picture unless you already turned it into numbers. And the single
+number it returns answers exactly one question — <em>"do these two move together along a straight
+line?"</em> — which is very often not the question being asked. <b>"Is this feature related to the
+target?" has a different right answer for every pair of variable types</b>, and naming the pair before
+naming the statistic is the move that separates a candidate who has measured association from one who
+has typed <code>.corr()</code>.</p>
+
+<p>Every measure below shares one shape, which makes the family easy to hold in the head: <b>a
+coefficient that says how strong, and a test that says whether a sample this small could have produced
+that strength by luck.</b> Report both. A coefficient with no p-value cannot be defended on a hundred
+rows; a p-value with no coefficient tells you an effect is detectable without telling you whether it is
+worth anything, and on fifty thousand rows everything is detectable.</p>
+
+<div class="scrollx">
+<table>
+<caption>The pair-type matrix — pick the row, pick the column, read off the measure and the test that
+travels with it. The matrix is symmetric, so only the upper triangle is filled.</caption>
+<thead><tr><th>&nbsp;</th><th>continuous</th><th>ordinal</th><th>nominal (multi-class)</th>
+<th>nominal (binary)</th></tr></thead>
+<tbody>
+<tr><th>continuous</th>
+<td><b>Pearson $r$</b> — straight lines only, and one outlier can own it.
+<b>Spearman $\rho$</b> — any monotone shape, computed on ranks, so it is outlier-resistant.
+<code>stats.pearsonr</code> / <code>stats.spearmanr</code> each return the coefficient
+<em>and</em> its p-value</td>
+<td><b>Spearman $\rho$</b>, or <b>Kendall $\tau_b$</b> when the sample is small or the ordinal side is
+heavily tied. <code>stats.spearmanr</code> / <code>stats.kendalltau</code>, p-values included</td>
+<td><b>Correlation ratio $\eta^2 = \mathrm{SS}_{\text{between}}/\mathrm{SS}_{\text{total}}$</b> —
+the share of the continuous variance explained by group membership. Test with one-way ANOVA
+<code>stats.f_oneway</code>, or <code>stats.kruskal</code> when normality or equal variance fails</td>
+<td><b>Point-biserial $r_{pb}$</b> <code>stats.pointbiserialr</code> — which <em>is</em> Pearson $r$ with
+the binary side coded as zero and one. Same story told as a test: Welch $t$, or Mann–Whitney if you
+distrust normality</td></tr>
+<tr><th>ordinal</th>
+<td class="small">mirror of continuous &times; ordinal</td>
+<td><b>Kendall $\tau_b$</b> is the default here, because ordinal data is tied data and $\tau_b$ is the
+tie-corrected variant (<code>variant="c"</code> gives Stuart's $\tau_c$ for lopsided tables).
+<b>Spearman $\rho$</b> when the levels are many and ties are few</td>
+<td><b>Chi-square test of independence</b> <code>stats.chi2_contingency</code> on the crosstab, with
+<b>bias-corrected Cramér's $V$</b> as the effect size — but note that this <em>throws the ordering
+away</em>. <code>stats.kruskal</code> on the ordinal codes keeps it and is the better test when order
+is real</td>
+<td>same as the cell to the left: chi-square plus corrected $V$ for the association, Mann–Whitney on the
+ordinal codes if you want the order to count</td></tr>
+<tr><th>nominal (multi-class)</th>
+<td class="small">mirror of continuous &times; nominal — correlation ratio $\eta^2$</td>
+<td class="small">mirror of ordinal &times; nominal</td>
+<td><b>Chi-square test of independence</b> for the p-value,
+<b>bias-corrected Cramér's $V$ (Bergsma 2013)</b> for the strength, on a range of zero to one.
+Pass <code>correction=False</code> so the test matches the $V$ formula, and check
+<code>expected_freq</code> before you believe the p-value</td>
+<td>identical machinery — chi-square plus corrected $V$. Nothing about the test cares that one side has
+only two levels</td></tr>
+<tr><th>nominal (binary)</th>
+<td class="small">mirror of continuous &times; binary — point-biserial</td>
+<td class="small">mirror of ordinal &times; binary</td>
+<td class="small">mirror of nominal &times; nominal</td>
+<td><b>Chi-square on the two-by-two</b> — the one shape where scipy's default Yates continuity
+correction actually does something, since it is applied only here, plus <b>corrected $V$</b>. Worth
+knowing: on a two-by-two table
+the uncorrected $V$ equals $|\phi|$, which equals the absolute Pearson $r$ between the two zero/one
+codings — the whole matrix closes back on itself</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="summary"><b>Interpretation — the matrix has only three ideas in it.</b> <b>(i) Two
+quantitative sides</b> (continuous or ordinal) means you can line the rows up and compare them, so the
+question is only <em>which</em> agreement you want: agreement of <em>values</em> (Pearson), of
+<em>ranks</em> (Spearman), or of <em>pairwise orderings</em> (Kendall). <b>(ii) One quantitative side
+and one categorical side</b> means you cannot line anything up, so the question becomes "does knowing
+the group tell me anything about the number?" — which is variance decomposition, and its answer is
+$\eta^2$ with ANOVA or Kruskal–Wallis behind it. Point-biserial is not a fourth idea, it is this case
+with two groups, where the arithmetic happens to collapse back into Pearson. <b>(iii) Two categorical
+sides</b> means neither side has an order to exploit, so all you can compare is the observed
+cross-tabulation against the one independence would have produced — chi-square for the p-value, Cramér's
+$V$ to put that chi-square on a zero-to-one scale you can quote.</div>
+
+<p><b>Pearson $r$ — covariance divided by the two standard deviations.</b> It measures the strength of a
+<em>straight-line</em> relationship on a range of minus one to one, and its p-value tests $H_0: r = 0$
+under bivariate normality. Its two failure modes are the two most-quoted facts in this whole subsection:
+it reads a perfect but curved relationship as merely partial, and a single leverage point can move it
+across the whole range. Reach for it when you genuinely mean "linear" — regression diagnostics,
+multicollinearity screens — and not as the default measure of
+"related".</p>
+
+<p><b>Spearman $\rho$ — Pearson computed on the ranks.</b> Replacing each value by its rank throws away
+the spacing and keeps the order, which buys two things at once: it detects <em>any</em> monotone
+relationship, curved or not, and it is unmoved by outliers, because the largest value is just
+"rank $n$" however large it happens to be. The cost is that the spacing you discarded was sometimes the
+information you wanted, and the gain in robustness is exactly the loss in resolution. On a clean linear
+relationship Pearson and Spearman agree closely; when they disagree loudly, that gap is itself the
+diagnostic, and the honest report names both.</p>
+
+<p><b>Kendall $\tau_b$ — the probability-style one.</b> Rather than ranking, it walks every pair of rows
+and asks whether the two variables order that pair the same way; $\tau$ is (concordant minus discordant)
+over the total, so it reads directly as a difference of probabilities rather than as a squared-error
+quantity. <code>scipy.stats.kendalltau</code> computes <b>$\tau_b$ by default</b>, the variant that
+corrects the denominator for ties, and <code>variant="c"</code> gives Stuart's $\tau_c$ for tables whose
+two sides have very different numbers of levels. Prefer Kendall to Spearman when the sample is small or
+ties are heavy — which is to say, prefer it for Likert scales, star ratings and risk grades, where every
+column is a handful of repeated levels.</p>
+
+<p><b>Point-biserial $r_{pb}$ — the special case that is not really a special case.</b> Code the binary
+variable as zero and one, run Pearson, and you have it: <code>stats.pointbiserialr</code> and
+<code>stats.pearsonr</code> return the same coefficient and the same p-value on the same data. Two
+consequences worth stating in a viva. Its <b>sign is an artefact of which level you called one</b>, so
+"positively correlated with churn" is meaningless until you say which coding you used. And because it is
+Pearson underneath, its p-value is testing the same null as a two-sample $t$-test on the two groups —
+same evidence, two vocabularies.</p>
+
+<p><b>Correlation ratio $\eta^2$ — variance decomposition wearing a correlation's clothes.</b> Split the
+continuous column by the categorical one, and $\eta^2 = \mathrm{SS}_{\text{between}}/
+\mathrm{SS}_{\text{total}}$ is the fraction of its total variability that sits <em>between</em> group
+means rather than <em>within</em> groups. It runs from zero (every group has the same mean) to one
+(no variation inside any group), it is <b>identical to the eta-squared effect size reported for a one-way
+ANOVA</b>, and $\eta = \sqrt{\eta^2}$ is the number people quote on a correlation-like scale. The
+significance test that belongs with it is <code>stats.f_oneway</code>, which assumes roughly normal
+residuals and comparable variances; when either assumption is uncomfortable, <code>stats.kruskal</code>
+asks the same question of the ranks and asks for much less.</p>
+
+<p><b>Chi-square and Cramér's $V$ — the categorical pair.</b> The chi-square test of independence
+compares the observed cross-tabulation against the counts that independent margins would have produced;
+<code>stats.chi2_contingency</code> hands back the statistic, the degrees of freedom, the p-value, and —
+the output nobody reads and everybody should — <code>expected_freq</code>. The statistic itself grows
+with the sample size, so it is useless as a strength measure, and Cramér's
+$V=\sqrt{\chi^2/\big(n\min(r-1,\,c-1)\big)}$ rescales it onto zero to one. That plain $V$ is
+<b>biased upward</b>, badly so when the sample is small relative to the number of cells, and the fix is
+the bias-corrected form:</p>
+
+$$\tilde\varphi^2=\max\!\left(0,\ \frac{\chi^2}{n}-\frac{(r-1)(c-1)}{n-1}\right),\qquad
+\tilde r=r-\frac{(r-1)^2}{n-1},\qquad \tilde c=c-\frac{(c-1)^2}{n-1},$$
+
+$$\tilde V=\sqrt{\frac{\tilde\varphi^2}{\min(\tilde r-1,\ \tilde c-1)}}.$$
+
+<p>Read the first term and the whole correction explains itself: under independence, $\chi^2$ has
+expectation $(r-1)(c-1)$, so $\chi^2/n$ carries a floor of $(r-1)(c-1)/(n-1)$ that is <em>pure table
+geometry</em> and nothing to do with association. Subtracting it and clamping at zero removes exactly
+that floor; shrinking $r$ and $c$ removes the matching bias in the denominator. When there is real
+association and enough rows the correction changes almost nothing; when there is none, it collapses the
+inflated number to zero, which is the answer you wanted.</p>
+
+<div class="warn"><b>Six ways to read one of these numbers wrongly.</b>
+<ul>
+<li><b>Pearson near zero does not mean unrelated.</b> It means <em>not linear</em>. A perfect
+exponential relationship with no noise at all reads as a middling Pearson.</li>
+<li><b>Spearman near zero does not mean unrelated either.</b> It means <em>not monotone</em> — a
+U-shape, a threshold, an XOR pair. Nothing in this subsection catches those; that is what
+<code>mutual_info_regression</code>/<code>mutual_info_classif</code> are for, and it is the one honest reason to reach past correlation.</li>
+<li><b>A chi-square p-value on a sparse table is not a p-value.</b> The asymptotic null distribution
+needs expected counts of at least five in at least eighty per cent of cells — read
+<code>expected_freq</code>, not the raw table, because a cell can be empty while its expectation is
+comfortable, and vice versa. When the rule fails, collapse rare levels
+or switch to Fisher's exact test.</li>
+<li><b>Uncorrected Cramér's $V$ on a small or wide table is an inflated number</b>, and the inflation is
+worst exactly where you are most likely to reach for it: many levels, few rows. Use the corrected form and say which one you used.</li>
+<li><b>$\eta^2$ is asymmetric by construction.</b> It is the variance of <em>the continuous column</em>
+explained by <em>the grouping</em>, so which variable plays which role is part of the definition, and the
+reverse quantity is not merely a different number, it is undefined. This makes it the one entry in the
+matrix that does not commute — a fact that matters the moment you drop it into a symmetric heatmap.</li>
+<li><b>Every coefficient here is a claim about association, none is a claim about cause.</b> A confounder
+that drives both columns produces a large, stable, highly significant coefficient between two variables
+that have no mechanism connecting them at all, and no amount of extra rows will shrink it — more data
+makes a confounded estimate <em>more precisely wrong</em>.</li>
+</ul>
+</div>
+
+<details class="code"><summary>Code — continuous &amp; ordinal pairs: where Pearson and Spearman part company, and why ties want Kendall (scipy)</summary>
+<pre><code>import numpy as np, pandas as pd
+from scipy import stats
+
+# ====== CONTINUOUS vs CONTINUOUS: Pearson asks "a line?", Spearman asks "a ladder?" ======
+week = np.arange(1, 21, dtype=float)
+df   = pd.DataFrame({"week": week,
+                     "cubic":    week ** 3,      # monotone, mildly convex
+                     "compound": 2.0 ** week})   # monotone, violently convex
+
+for col in ("cubic", "compound"):
+    r,   p_r = stats.pearsonr(df["week"],  df[col])
+    rho, p_s = stats.spearmanr(df["week"], df[col])
+    print(f"week vs {col:9s} pearson r={r:+.4f} (p={p_r:.1e})   spearman rho={rho:+.4f} (p={p_s:.1e})")
+# Both columns are NOISELESS and perfectly ordered, so Spearman returns 1.0000 for both. Pearson does
+# not, and the steeper the curve the worse it reads. Fact worth knowing: for a strictly increasing f,
+# cov(x, f(x)) &gt; 0 always -- so curvature alone can drag Pearson DOWN but never to zero. For zero you
+# need an outlier, which is the other half of the lesson:
+
+out = pd.concat([df, pd.DataFrame({"week": [3.0], "cubic": [40_000.0], "compound": [8.0]})],
+                ignore_index=True)
+r,   p_r = stats.pearsonr(out["week"],  out["cubic"])
+rho, p_s = stats.spearmanr(out["week"], out["cubic"])
+print(f"+1 outlier row  pearson r={r:+.4f} (p={p_r:.4f})   spearman rho={rho:+.4f} (p={p_s:.1e})")
+# ONE row in 21. Pearson now reports no relationship at all, with a p-value nowhere near 0.05, while
+# Spearman barely moves: a rank can only be wrong by 20 places, a value can be wrong by 40,000.
+
+# ====== ORDINAL vs ORDINAL: ties are the whole story, so Kendall tau-b ======
+a = np.array([5, 4, 4, 3, 3, 3, 2, 2, 1, 5, 4, 3, 3, 2, 1])   # rater A, 1-5 Likert
+b = np.array([5, 5, 4, 4, 3, 2, 3, 2, 1, 4, 4, 4, 2, 2, 2])   # rater B, same 15 items
+tau_b, p_b = stats.kendalltau(a, b)                    # DEFAULT = tau-b, tie-corrected
+tau_c, p_c = stats.kendalltau(a, b, variant="c")       # Stuart's tau-c, for lopsided tables
+rho,   p_r = stats.spearmanr(a, b)
+print(f"tied values -- A: {len(a) - len(np.unique(a))}, B: {len(b) - len(np.unique(b))}")
+print(f"kendall tau-b = {tau_b:+.4f} (p={p_b:.4f})   &lt;- what scipy gives you by default")
+print(f"kendall tau-c = {tau_c:+.4f} (p={p_c:.4f})")
+print(f"spearman rho  = {rho:+.4f} (p={p_r:.4f})")
+
+# ====== CONTINUOUS vs ORDINAL: same two tools; Kendall is the safer read when levels are few ======
+rng          = np.random.default_rng(0)
+satisfaction = np.array([1, 1, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 5, 5])     # ordinal, heavy ties
+spend        = 40 * satisfaction + rng.normal(0, 25, satisfaction.size)  # continuous
+print(f"spend vs satisfaction  spearman={stats.spearmanr(spend, satisfaction)[0]:+.4f}"
+      f"   kendall tau-b={stats.kendalltau(spend, satisfaction)[0]:+.4f}")
+</code></pre>
+<p class="wnote">The first two lines are the exam answer to "when would you not use Pearson": both
+columns are perfectly ordered functions of <code>week</code> with no noise whatsoever, Spearman scores
+them both at exactly one, and Pearson does not — it is measuring the wrong thing, not measuring badly.
+The outlier row is the sharper demonstration, because it moves Pearson to a value whose p-value says
+<em>no relationship</em> while Spearman is still comfortably significant, off a single edited row. In
+the ordinal block, note that $\tau_b$ and $\rho$ do not merely differ by rounding: they are on different
+scales by construction — $\tau$ is a difference of two probabilities while $\rho$ is a product-moment
+coefficient computed on ranks, so $|\tau|$ comes out systematically smaller than $|\rho|$ on the same
+data and comparing the two numbers directly is a category error.</p>
+</details>
+
+<details class="code"><summary>Code — continuous vs categorical: point-biserial, and the correlation ratio from scratch (scipy / numpy)</summary>
+<pre><code>import numpy as np, pandas as pd
+from scipy import stats
+
+rng = np.random.default_rng(0)
+
+# ====== CONTINUOUS vs BINARY NOMINAL: point-biserial IS Pearson with the group coded 0/1 ======
+grp = np.repeat(["control", "treated"], 60)
+val = np.where(grp == "treated", rng.normal(72, 9, 120), rng.normal(66, 9, 120))
+b01 = (grp == "treated").astype(int)               # the coding is the entire trick
+r_pb, p_pb = stats.pointbiserialr(b01, val)
+r_pe, p_pe = stats.pearsonr(b01, val)
+print(f"pointbiserialr : r={r_pb:+.6f}  p={p_pb:.3e}")
+print(f"pearsonr(0/1)  : r={r_pe:+.6f}  p={p_pe:.3e}   identical? {np.isclose(r_pb, r_pe)}")
+print("flip the coding, flip the sign:", f"{stats.pointbiserialr(1 - b01, val)[0]:+.6f}")
+# ...which is why "positively correlated with churn" means nothing until you say which level is 1.
+
+# ====== CONTINUOUS vs MULTI-CLASS NOMINAL: the correlation ratio, eta^2 = SS_between / SS_total ======
+def correlation_ratio(categories, values):
+    """eta^2 in [0, 1]: the share of the variance of `values` explained by group membership.
+    ASYMMETRIC -- `categories` is the GROUPER, `values` is the thing being explained."""
+    categories = np.asarray(categories)
+    values     = np.asarray(values, dtype=float)
+    grand      = values.mean()
+    ss_between = sum(v.size * (v.mean() - grand) ** 2
+                     for v in (values[categories == c] for c in np.unique(categories)))
+    ss_total   = ((values - grand) ** 2).sum()
+    return 0.0 if ss_total == 0 else ss_between / ss_total
+
+region = np.repeat(["east", "north", "south"], 60)
+spend  = np.concatenate([rng.normal(100, 14, 60), rng.normal(113, 14, 60), rng.normal(101, 14, 60)])
+groups = [spend[region == c] for c in np.unique(region)]
+
+eta2   = correlation_ratio(region, spend)
+F, p_F = stats.f_oneway(*groups)      # parametric: normal residuals, comparable variances
+H, p_H = stats.kruskal(*groups)       # rank-based fallback: neither assumption needed
+print(f"eta^2 = {eta2:.4f}   eta = {np.sqrt(eta2):.4f}")
+print(f"ANOVA   F={F:.4f}  p={p_F:.3e}")
+print(f"Kruskal H={H:.4f}  p={p_H:.3e}")
+
+# eta^2 IS the one-way ANOVA effect size -- recover it from F and the two dof alone, and check:
+k, n = len(groups), spend.size
+print("eta^2 rebuilt from F:", round((k - 1) * F / ((k - 1) * F + (n - k)), 4), "vs", round(eta2, 4))
+
+# A null column: same three groups, no real difference. eta^2 is small but NEVER negative -- it is a
+# ratio of sums of squares, so noise alone always buys you a little, and n is what makes it small.
+noise = rng.normal(100, 14, 180)
+print(f"null column -&gt; eta^2={correlation_ratio(region, noise):.4f}, "
+      f"ANOVA p={stats.f_oneway(*[noise[region == c] for c in np.unique(region)])[1]:.4f}")
+</code></pre>
+<p class="wnote">The <code>np.isclose</code> line is the one to remember: point-biserial is not a
+separate technique to learn, it is Pearson with a coding convention, and saying so is worth more than
+naming it. The rebuilt-from-$F$ line is the other half of the same trick — $\eta^2=(k-1)F/\big((k-1)F+
+(n-k)\big)$ recovers the ratio from the ANOVA table exactly, which is the proof that the correlation
+ratio and the ANOVA effect size are one quantity with two names. Watch the null column: $\eta^2$ is
+bounded below by zero and never reaches it, so a small positive value is the <em>expected</em> reading
+under no association, and the p-value beside it is what tells you which kind of small you are looking
+at.</p>
+</details>
+
+<details class="code"><summary>Code — nominal vs nominal: chi-square, the expected-count check, and Cramér's $V$ corrected per Bergsma 2013 (scipy / pandas)</summary>
+<pre><code>import numpy as np, pandas as pd
+from scipy import stats
+
+def cramers_v(tab):
+    """Plain Cramer's V = sqrt(chi2 / (n * min(r-1, c-1))). Biased UPWARD in small samples."""
+    tab  = np.asarray(tab, dtype=float)
+    chi2 = stats.chi2_contingency(tab, correction=False).statistic
+    n, (r, c) = tab.sum(), tab.shape
+    return np.sqrt(chi2 / (n * min(r - 1, c - 1)))
+
+def cramers_v_corrected(tab):
+    """Bias-corrected Cramer's V (Bergsma 2013). Collapses to 0.0 when the whole signal was bias."""
+    tab  = np.asarray(tab, dtype=float)
+    chi2 = stats.chi2_contingency(tab, correction=False).statistic
+    n, (r, c) = tab.sum(), tab.shape
+    phi2  = max(0.0, chi2 / n - (r - 1) * (c - 1) / (n - 1))   # de-biased phi^2, floored at zero
+    r_c   = r - (r - 1) ** 2 / (n - 1)                         # shrunken row count
+    c_c   = c - (c - 1) ** 2 / (n - 1)                         # shrunken column count
+    denom = min(r_c - 1, c_c - 1)
+    return 0.0 if denom &lt;= 0 else np.sqrt(phi2 / denom)
+
+def chi2_report(tab, label):
+    res = stats.chi2_contingency(np.asarray(tab, dtype=float), correction=False)
+    ok  = (res.expected_freq &gt;= 5).mean()      # THE output nobody reads and everybody should
+    print(f"{label}: n={int(np.asarray(tab).sum())}  chi2={res.statistic:.3f}  "
+          f"dof={res.dof}  p={res.pvalue:.4f}")
+    print(f"   expected&gt;=5 in {ok:.0%} of cells (rule of thumb: &gt;=80%)  "
+          f"min expected={res.expected_freq.min():.2f}")
+    print(f"   V (plain) = {cramers_v(tab):.4f}   V (Bergsma 2013) = {cramers_v_corrected(tab):.4f}")
+
+rng = np.random.default_rng(7)
+
+# ---- (1) NO association whatsoever, small sample: 4 channels x 3 outcomes, 90 rows ----
+small = pd.crosstab(pd.Series(rng.choice(list("ABCD"), 90), name="channel"),
+                    pd.Series(rng.choice(["lost", "open", "won"], 90), name="outcome"))
+print(small, "\n")
+chi2_report(small, "independent, n=90 ")
+
+# ---- (2) the SAME generating process, ten times the rows: the bias is an n effect ----
+big = pd.crosstab(pd.Series(rng.choice(list("ABCD"), 900), name="channel"),
+                  pd.Series(rng.choice(["lost", "open", "won"], 900), name="outcome"))
+chi2_report(big, "independent, n=900")
+
+# ---- (3) a REAL association: outcome genuinely depends on channel ----
+ch   = rng.choice(list("ABCD"), 900)
+p    = {"A": [.6, .2, .2], "B": [.2, .3, .5], "C": [.4, .3, .3], "D": [.3, .2, .5]}
+oc   = np.array([rng.choice(["lost", "open", "won"], p=p[c]) for c in ch])
+real = pd.crosstab(pd.Series(ch, name="channel"), pd.Series(oc, name="outcome"))
+chi2_report(real, "real assoc, n=900 ")
+
+# ---- (4) where the correction really bites: many levels, few rows, nothing going on ----
+sparse = pd.crosstab(pd.Series(rng.choice([f"c{i}" for i in range(8)], 60)),
+                     pd.Series(rng.choice(list("xyz"), 60)))
+chi2_report(sparse, "8x3 table, n=60  ")
+</code></pre>
+<p class="wnote">Run all four and the correction stops being a formula and becomes a rule. On (1) the
+data are independent by construction and plain $V$ still reports a respectable-looking figure while the
+corrected one is exactly zero; on (2), the identical process with ten times the rows shrinks the plain
+$V$ on its own, which is the tell that the inflation was a sample-size artefact all along. On (3) —
+genuine association, plenty of rows — the two versions agree to the second decimal, so <b>the correction
+costs you nothing when there is something real to measure</b> and that is the argument for making it your
+default. Case (4) is the one to remember on the day: a wide, thin table where plain $V$ suggests a
+moderate association, the corrected $V$ is a small fraction of it, the p-value is not remotely
+significant, and the expected-count check fails in every single cell — four readings, one verdict, and
+only the first of them is the one an unwary candidate would have quoted.</p>
+</details>
+
+<div class="summary"><b>The association matrix in practice.</b> The natural next thought is a heatmap
+over every pair of columns, and it is a good instinct as long as the dispatch is explicit and the
+caveat travels with the plot. Twelve lines get you there:
+<pre><code>def association_matrix(df, cat_cols):
+    cols = list(df.columns)
+    M    = pd.DataFrame(np.eye(len(cols)), index=cols, columns=cols)   # 1.0 down the diagonal
+    for i, a in enumerate(cols):
+        for b in cols[i + 1:]:
+            ca, cb = a in cat_cols, b in cat_cols
+            if   not ca and not cb: v = abs(stats.spearmanr(df[a], df[b]).statistic)   # monotone
+            elif ca and cb:         v = cramers_v_corrected(pd.crosstab(df[a], df[b])) # Bergsma
+            elif ca:                v = np.sqrt(correlation_ratio(df[a], df[b]))       # eta
+            else:                   v = np.sqrt(correlation_ratio(df[b], df[a]))       # eta, flipped
+            M.loc[a, b] = M.loc[b, a] = v
+    return M          # every cell in [0, 1], symmetric, ready for sns.heatmap(..., vmin=0, vmax=1)
+</code></pre>
+<p>Three details carry the whole helper. <code>abs()</code> on Spearman is what makes the scales
+commensurable at all, since $V$ and $\eta$ have no sign to give — and it means the matrix has thrown
+<em>direction</em> away, so read it beside a signed correlation, never instead of one. The two
+<code>eta</code> branches exist because $\eta^2$ is asymmetric: the categorical column must be the
+grouper, so the branch order is doing real work, not tidying. And <code>cat_cols</code> is passed in
+rather than sniffed from dtypes, because the column that will get this wrong is the integer-coded
+category from §22.2.10 — a nominal variable wearing an <code>int64</code> and about to be handed to
+Spearman.</p>
+<p class="wnote"><b>The caveat that must be printed under the heatmap.</b> A cell of this matrix is
+<em>not</em> comparable to a cell computed by a different measure. Spearman's $\rho$, Cramér's $V$ and
+$\eta$ share the interval from zero to one and share nothing else: they are built from different null
+distributions, they saturate differently, and a corrected $V$ of one third is not "the same amount of
+association" as a Spearman $\rho$ of one third in any sense you could defend. Read <em>within</em> a
+measure type — rank the
+categorical&ndash;categorical pairs against each other, rank the numeric pairs against each other — and
+treat the cross-type comparisons as a way to spot which pairs deserve a proper look, never as a
+ranking.</p>
+</div>
+
+<div class="warn"><b>The three association sins.</b>
+<ul>
+<li><b>Scanning every pair and reporting the significant ones.</b> A frame of $d$ columns holds
+$d(d-1)/2$ distinct pairs, which is in the hundreds by the time $d$ reaches thirty; test all of them at
+the five per cent level on data with no signal anywhere and a couple of dozen still come back
+"significant", by construction rather than by accident. This is §7's thousand-coin experiment with a
+correlation matrix in place of coins, and §21.7's whole point that the expensive mistakes return
+plausible numbers rather than errors. The fix is not sophisticated: decide the pairs you care about
+<em>before</em> you look, or apply
+a Bonferroni/false-discovery adjustment, or treat the whole scan as hypothesis <em>generation</em> and
+confirm on held-out rows. What you may not do is scan silently and quote the survivor.</li>
+<li><b>Pearson on ordinal codes, as if the levels were evenly spaced.</b> The moment §22.2.10's
+<code>OrdinalEncoder</code> turns <code>{"low", "medium", "high"}</code> into <code>{0, 1, 2}</code>,
+<code>df.corr()</code> will happily consume it — and Pearson then asserts that the gap from low to
+medium is exactly the gap from medium to high, which is a claim about the world that nothing in the data
+supports. Ordinal columns get Kendall $\tau_b$ or Spearman, both of which use only the ordering you
+actually have. Worse still is the same call on a <em>nominal</em> integer code, where even the ordering
+is fiction: the correlation of <code>city_code</code> with anything is a correlation with the alphabet.</li>
+<li><b>Dropping the columns that scored low.</b> A pairwise association screen is a filter method and inherits its blind spot exactly: two features that are useless
+alone and jointly decisive — the XOR pair — score near zero against the target on <em>every</em> measure
+in this subsection, because every one of them is bivariate. They will be cut first and the cut will look
+principled. Screen to prioritise, not to delete; if columns must go, let the model decide, and check the survivors with
+permutation importance.</li>
+</ul>
+</div>
+
+<div class="summary"><b>The one-line answer.</b> <em>"Which correlation depends on the pair of types, not
+on habit: Pearson for linear continuous pairs and Spearman when I only trust the ordering, Kendall
+tau-b once ties are heavy, point-biserial — which is just Pearson on a 0/1 code — against a binary
+group, the correlation ratio eta-squared with an ANOVA or Kruskal–Wallis p-value against a multi-class
+group, and chi-square with a bias-corrected Cramér's V for two categoricals, after I have checked the
+expected counts. I report a coefficient and a p-value together, I never read a near-zero coefficient as
+'unrelated' — only as 'not linear' or 'not monotone' — and I do not delete columns on a pairwise
+screen."</em></div>
+
 <h3>22.3 &nbsp; Datetime &amp; time-series preprocessing</h3>
 
 <p>Q1 and Q2 both hand you a date column, and in both of them the date column is the one people lose
