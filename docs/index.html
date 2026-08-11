@@ -7774,6 +7774,168 @@ API it stays an argument of <code>xgb.train</code>/<code>xgb.cv</code>. Either w
 <code>eval_set</code>/<code>evals</code> to watch, and that watch-list must <em>not</em> be your test set if
 you intend to report an honest test score - early stopping on the test fold is leakage (§6).</div>
 
+<h4>XGBRegressor: the same booster aimed at RMSE</h4>
+
+<p>The exam's regression questions - including the Q3 drill of "model until the RMSE threshold
+falls" (§22.5) - run on the <em>same</em> booster you just met. Everything above transfers
+verbatim: both APIs, the constructor-level <code>early_stopping_rounds</code>, native
+categoricals, and every parameter in the table below. What changes is the loss you plug into
+§13.7's machinery: for <code>reg:squarederror</code> the derivatives collapse to
+$g_i = \hat{y}_i - y_i$ and $h_i = 1$, so each leaf weight $w_j^{*} = -G_j/(H_j+\lambda)$ is
+just a shrunken mean of the residuals in that leaf, and <code>min_child_weight</code> - the
+Hessian floor - degenerates into a plain minimum row count per leaf. The metric changes with
+the loss (<code>rmse</code>, not <code>logloss</code>), and four regression-only traps appear:
+a split line that now raises, a target transform that now changes the model, predictions that
+can leave the target's domain, and a classifier knob that silently does nothing on this target.</p>
+
+<details class="code"><summary>Code - the end-to-end regressor: early stopping, val RMSE vs the mean baseline (sklearn / xgboost)</summary>
+<pre><code>import json
+import numpy as np
+from xgboost import XGBRegressor
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import root_mean_squared_error     # current sklearn API - see the interview line below
+
+# same mixed-type frame as the classifier lab; the label is now a continuous spend column
+Xtr, Xva, ytr, yva = train_test_split(X, spend, test_size=0.25, random_state=0)   # NO stratify=
+
+reg = XGBRegressor(
+    objective="reg:squarederror",     # the default anyway - writing it out is documentation
+    eval_metric="rmse",               # also the default for squarederror; and what Q3 scores
+    n_estimators=2000, learning_rate=0.05, max_depth=4,
+    tree_method="hist", enable_categorical=True,
+    early_stopping_rounds=50, random_state=0,
+)
+reg.fit(Xtr, ytr, eval_set=[(Xva, yva)], verbose=False)
+
+reg.best_iteration      # 243 <!-- prov: s13_xgb_reg.json:reg_best_iteration --> - the round with the best val rmse (0-indexed)
+reg.best_score          # 6.4749 <!-- prov: s13_xgb_reg.json:reg_best_score --> - i.e. the val RMSE AT that round
+
+pred = reg.predict(Xva)                        # wrapper truncates to the best round for you
+root_mean_squared_error(yva, pred)             # 6.4749 <!-- prov: s13_xgb_reg.json:reg_val_rmse --> - matches best_score to the 4 dp recorded
+root_mean_squared_error(yva, np.full(len(yva), ytr.mean()))
+                                               # 47.3652 <!-- prov: s13_xgb_reg.json:baseline_rmse --> - the predict-the-train-mean baseline
+
+# early stopping does NOT trim the model: it keeps best + patience trees
+reg.get_booster().num_boosted_rounds()   # 294 <!-- prov: s13_xgb_reg.json:reg_n_trees_kept --> = best_iteration 243 <!-- prov: s13_xgb_reg.json:reg_best_iteration --> + 50 patience + 1
+# native booster.predict WITHOUT iteration_range uses all 294 <!-- prov: s13_xgb_reg.json:reg_n_trees_kept --> trees:
+# off from the best-round slice by up to 1.266951 <!-- prov: s13_xgb_reg.json:pred_all_trees_vs_best_max_diff --> here (the wrapper slice matches exactly) <!-- prov: s13_xgb_reg.json:pred_wrapper_equals_best_range -->
+
+# the intercept: base_score is estimated from the data since xgboost 2.0, not the old 0.5
+cfg = json.loads(reg.get_booster().save_config())
+# 3.4.0 <!-- prov: s13_xgb_reg.json:xgboost_version --> stores it as the bracketed vector STRING "[3.7235272E0]" <!-- prov: s13_xgb_reg.json:base_score_config_raw --> - float() on it raises;
+# strip the brackets and it is 3.7235 <!-- prov: s13_xgb_reg.json:base_score_fitted --> = the train target mean 3.7235 <!-- prov: s13_xgb_reg.json:train_target_mean --> to 4 dp</code></pre>
+<p class="wnote">Interview line: <code>best_score</code> <em>is</em> the validation RMSE at the best round -
+here 6.4749 <!-- prov: s13_xgb_reg.json:reg_best_score --> against a mean-baseline of
+47.3652 <!-- prov: s13_xgb_reg.json:baseline_rmse --> - so you rarely need to recompute it. When you
+do, use what the installed sklearn actually ships: on sklearn
+1.9.0 <!-- prov: s13_xgb_reg.json:sklearn_version -->, <code>root_mean_squared_error</code> imports and
+works <!-- prov: s13_xgb_reg.json:rmse_func_available -->, while
+<code>mean_squared_error(..., squared=False)</code> <em>raises</em> <!-- prov: s13_xgb_reg.json:mse_squared_kwarg_status -->
+<code>TypeError: got an unexpected keyword argument 'squared'</code> <!-- prov: s13_xgb_reg.json:mse_squared_kwarg_detail -->.
+The kwarg is removed, not deprecated - old notebook snippets must be rewritten, they will not limp along
+with a warning.</p>
+</details>
+
+<div class="warn"><b>Trap 1 - <code>stratify=</code> does not survive the copy-paste.</b> The
+classifier's split line above says <code>stratify=y</code>. Reuse it on a continuous target and
+sklearn treats every distinct float as its own class: on this fixture the split raises a
+<code>ValueError</code> <!-- prov: s13_xgb_reg.json:stratify_error_type --> whose message begins
+<code>The least populated classes in y have only 1 member, which is too few. The minimum number</code>
+<!-- prov: s13_xgb_reg.json:stratify_error_msg --> (sklearn 1.9.0's
+<!-- prov: s13_xgb_reg.json:sklearn_version --> wording - note the plural "classes").
+Stratification is a class-label concept; for regression you split plain, as in the lab, and if the
+data has a time column you split on time instead - a random split leaks the future (§22.4).</div>
+
+<p><b>Traps 2 and 3 live in the target.</b> The note at the top of this subsection said scaling
+is pointless - for <em>features</em>, which only ever meet the trees as split thresholds. The
+target is different: it enters through the loss, so a monotone map of $y$ changes which errors
+squared loss punishes and therefore changes the fitted model. Train on $\log(1+y)$ and the booster
+minimises squared error on the log scale - roughly <em>relative</em>, rather than absolute, error;
+<code>expm1</code> maps predictions back. On a heavy right tail
+that reweighting can win even when the score is raw RMSE - and on this fixture it does:
+184.1083 <!-- prov: s13_xgb_reg.json:rmse_raw_target --> for the raw-target model vs
+170.5317 <!-- prov: s13_xgb_reg.json:rmse_log_target --> for the log-target model, both scored on
+the original scale of the same split. The honest rule is: check both, keep whichever wins on the
+metric you are scored on. The third trap is the domain: squared error knows nothing about
+nonnegativity, so nothing stops a prediction below zero.</p>
+
+<details class="code"><summary>Code - raw vs log1p target, Jensen bias, and negative predictions (sklearn / xgboost)</summary>
+<pre><code># a skewed spend target on the same frame: standardise the fixture's signal, exponentiate
+z = (lin - lin.mean()) / lin.std()
+spend_s = 100 * np.exp(z + rng.normal(0, 0.6, n))   # lognormal-shaped: min 3.3395 <!-- prov: s13_xgb_reg.json:skew_target_min -->, median 102.1864 <!-- prov: s13_xgb_reg.json:skew_target_median -->, max 4015.0324 <!-- prov: s13_xgb_reg.json:skew_target_max -->
+Xtr, Xva, ytr_s, yva_s = train_test_split(X, spend_s, test_size=0.25, random_state=0)
+
+common = dict(n_estimators=2000, learning_rate=0.05, max_depth=4, tree_method="hist",
+              enable_categorical=True, early_stopping_rounds=50, random_state=0,
+              eval_metric="rmse")
+
+raw = XGBRegressor(**common)
+raw.fit(Xtr, ytr_s, eval_set=[(Xva, yva_s)], verbose=False)
+root_mean_squared_error(yva_s, raw.predict(Xva))        # 184.1083 <!-- prov: s13_xgb_reg.json:rmse_raw_target -->
+
+logm = XGBRegressor(**common)                           # early stopping now watches LOG-scale rmse
+logm.fit(Xtr, np.log1p(ytr_s), eval_set=[(Xva, np.log1p(yva_s))], verbose=False)
+pred_back = np.expm1(logm.predict(Xva))                 # back-transform before scoring
+root_mean_squared_error(yva_s, pred_back)               # 170.5317 <!-- prov: s13_xgb_reg.json:rmse_log_target --> - log wins on THIS tail
+
+# Jensen retransformation bias: expm1 of a mean-of-logs UNDERestimates the mean
+pred_back.mean(), yva_s.mean()      # 145.415 <!-- prov: s13_xgb_reg.json:jensen_pred_mean --> vs 173.5378 <!-- prov: s13_xgb_reg.json:jensen_actual_mean --> - systematically low
+
+# domain trap: negative predictions are possible, not automatic
+raw.predict(Xva).min()   # 104.8557 <!-- prov: s13_xgb_reg.json:raw_pred_min --> and 0 <!-- prov: s13_xgb_reg.json:n_negative_preds --> negative preds here:
+                         # RMSE is dominated by the right tail, the model barely visits the left
+
+# engineered variant: same frame, but the bottom of the ORIGINAL spend lumped at exactly 0
+y0 = np.clip(spend - np.quantile(spend, 0.3), 0.0, None)
+Xtr0, Xva0, ytr0, yva0 = train_test_split(X, y0, test_size=0.25, random_state=0)
+(ytr0 == 0).mean()       # 0.305 <!-- prov: s13_xgb_reg.json:engineered_target_zero_frac --> of train labels sit at the domain floor
+zm = XGBRegressor(n_estimators=300, learning_rate=0.1, max_depth=4, tree_method="hist",
+                  enable_categorical=True, random_state=0)   # plain squared-error fit - no eval_set, no early stopping
+zm.fit(Xtr0, ytr0)
+(zm.predict(Xva0) &lt; 0).sum()   # 26 <!-- prov: s13_xgb_reg.json:n_negative_preds_engineered --> negative val predictions near the zero lump
+zm.predict(Xva0).min()         # -2.0682 <!-- prov: s13_xgb_reg.json:engineered_pred_min --></code></pre>
+<p class="wnote">Interview line: the log-transform verdict is fixture-specific - here log won,
+170.5317 <!-- prov: s13_xgb_reg.json:rmse_log_target --> vs
+184.1083 <!-- prov: s13_xgb_reg.json:rmse_raw_target --> - so run both and let the scored metric decide.
+If you do transform, remember the back-transformed mean runs low
+(145.415 <!-- prov: s13_xgb_reg.json:jensen_pred_mean --> predicted vs
+173.5378 <!-- prov: s13_xgb_reg.json:jensen_actual_mean --> actual): fine for RMSE ranking, dangerous if
+someone sums your predictions into a budget. And on a nonnegative target, end with
+<code>np.maximum(pred, 0)</code> - against a nonnegative truth, clipping a negative prediction to zero
+can only shrink its squared error - or pick an objective that respects the domain from the menu below.</p>
+</details>
+
+<div class="scrollx"><table>
+<thead><tr><th class="l">objective</th><th class="l">loss / behaviour</th><th class="l">when it is the right answer</th></tr></thead>
+<tbody>
+<tr><td class="l"><code>reg:squarederror</code></td><td class="l">mean regression: $g_i = \hat{y}_i - y_i$, $h_i = 1$. The default - the fitted config records exactly this objective <!-- prov: s13_xgb_reg.json:default_objective --> with default metric <code>rmse</code> <!-- prov: s13_xgb_reg.json:default_eval_metric_for_squarederror --></td><td class="l">scored on RMSE - the Q3 case (§22.5). Say nothing and this is what you get.</td></tr>
+<tr><td class="l"><code>reg:absoluteerror</code></td><td class="l">median regression, MAE loss; fits cleanly on 3.4.0 <!-- prov: s13_xgb_reg.json:xgboost_version --> <!-- prov: s13_xgb_reg.json:absoluteerror_fits --></td><td class="l">scored on MAE, or outliers you refuse to let a single row dominate</td></tr>
+<tr><td class="l"><code>reg:quantileerror</code> + <code>quantile_alpha</code></td><td class="l">pinball loss; asked for the 0.9 quantile here, empirical coverage was 0.9233 <!-- prov: s13_xgb_reg.json:quantile_coverage_train --> on train but only 0.82 <!-- prov: s13_xgb_reg.json:quantile_coverage --> on validation <!-- prov: s13_xgb_reg.json:quantile_fits --></td><td class="l">prediction intervals and asymmetric over/under costs - but "coverage $\approx \alpha$" held in-sample only here, so verify it on held-out data before promising it</td></tr>
+<tr><td class="l"><code>reg:squaredlogerror</code></td><td class="l">squared error on the log1p scale - approximately relative errors; needs targets greater than -1 (the log1p domain; in practice nonnegative); fits cleanly <!-- prov: s13_xgb_reg.json:squaredlogerror_fits --></td><td class="l">targets spanning orders of magnitude scored on RMSLE - the built-in cousin of the manual log1p lab above</td></tr>
+<tr><td class="l"><code>count:poisson</code></td><td class="l">Poisson deviance with a log link; fits cleanly <!-- prov: s13_xgb_reg.json:poisson_fits --></td><td class="l">nonnegative integer counts: visits, claims, arrivals</td></tr>
+<tr><td class="l"><code>reg:gamma</code> / <code>reg:tweedie</code></td><td class="l">skewed strictly-positive targets; tweedie bridges Poisson and gamma for zero-inflated positives (descriptive row - not probed in this run)</td><td class="l">insurance-style severity or total-cost targets with a long positive tail; if zeros are present pick tweedie - gamma requires strictly positive targets</td></tr>
+</tbody></table></div>
+<p class="small"></p>
+
+<div class="note"><b>What does not transfer, and what does.</b> Not transferring:
+<code>stratify=</code> (trap 1 above); <code>predict_proba</code>, which simply does not exist on the
+regressor; and - trap 4 - <code>scale_pos_weight</code>, which <code>XGBRegressor</code> takes without
+complaint ("accepted silently" <!-- prov: s13_xgb_reg.json:spw_on_regressor_status -->: no Python
+warning, no native log line, stored in the config as
+5 <!-- prov: s13_xgb_reg.json:spw_in_config -->) yet a twin fit without it gives bit-identical
+predictions here - max difference 0.0 <!-- prov: s13_xgb_reg.json:spw_pred_max_diff --> under
+<code>reg:squarederror</code>. The fine print: the shared regression loss applies the weight only to
+rows whose label is <em>exactly</em> 1.0, so on a continuous target that never hits 1.0 it is a
+silent no-op - but on a target with a lump at exactly 1.0 (counts, ratings, normalised spend) it
+quietly reweights those rows and changes the fit. A knob that silently changes nothing on this
+target is worse than one that errors.
+Transferring unchanged: the parameter table and tuning order below, <code>SelectFromModel</code>, the
+<code>xgb.cv</code> rmse recipe already shown above, and the importance lenses -
+<code>get_score</code> works on the regressor as-is <!-- prov: s13_xgb_reg.json:reg_importance_works -->,
+with <code>salary</code> <!-- prov: s13_xgb_reg.json:reg_top_gain_feature --> the top gain feature on
+this fixture. The timed application of all of this is the beat-the-RMSE loop (§22.5): Q3 is this
+subsection plus a clock.</div>
+
 <h4>The parameters that actually matter</h4>
 
 <p>§13.11 lists what the handwritten source names; this is the working set, grouped by the <em>role</em> a
