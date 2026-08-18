@@ -1325,6 +1325,152 @@ D_i = \frac{r_i^2}{p}\cdot\frac{h_{ii}}{1-h_{ii}} .$$
 <p><strong>Interpretation.</strong> The three tools answer three different questions and only their <em>combination</em> means "influential". Leverage is about $X$ alone (§2.8: $P$ never sees $\mathbf{y}$) - it says how much say a point <em>could</em> have. A studentized residual is about $\mathbf{y}$ alone - it says how badly the point is fitted. Cook's distance multiplies them: a point with huge leverage that happens to sit on the line moves nothing ($r_i\approx0$), and a badly-fitted point at the centre of the $x$ cloud moves little ($h_{ii}$ small). Student 5 is flagged not because they are extreme in study hours or sleep - their leverage $0.380$ is close to the $0.3$ average - but because they score $92$ where the fit predicts $97.2$: high $r$, ordinary $h$. And the discipline the deck implies but does not state: a flag is a <em>question</em>, not a verdict. Here $|t_5|=3.688$ against the Bonferroni-corrected outlier cutoff $t_{1-0.05/(2N),\,N-p-1}=4.317$ - testing the largest of $10$ residuals means allowing for $10$ chances to look extreme, and once you do, student 5 does not clear the bar. Report the fit both with and without them; do not delete.</p>
 </div>
 
+<h4>2.9.4 &nbsp; Detection, formalised: Durbin–Watson, Breusch–Pagan and the QQ plot <span class="tag">example</span></h4>
+<p>The Detection column of §2.9.1's table names three formal instruments beyond the residual plots of §2.9.2: the <strong>Durbin–Watson</strong> statistic for independence, the <strong>Breusch–Pagan</strong> test for homoscedasticity, and the <strong>QQ plot</strong> with its test-shaped companion Shapiro–Wilk for normality. §2.9.2 read the three synthetic residual sets by eye and quoted the verdicts; this subsection derives each instrument and recomputes it, stepwise, on those same three panels ($n = 60$<!-- prov: s02_remedies.json:panel_n -->).</p>
+
+<div class="defn">
+<p><strong>Durbin–Watson.</strong> With residuals ordered by time (or by whatever index dependence would travel along),</p>
+$$d \;=\; \frac{\sum_{t=2}^{N}(e_t - e_{t-1})^2}{\sum_{t=1}^{N} e_t^2} \;\approx\; 2\,(1-\hat\rho_1),$$
+<p>where $\hat\rho_1$ is the lag-1 sample autocorrelation of the residuals. The approximation comes from expanding the square: the cross term $-2\sum e_t e_{t-1}$ supplies the $\hat\rho_1$, and what is dropped are end-effect terms of relative order $1/N$. So $d$ lives in $[0, 4]$ and is read against 2: $d \approx 2$ means no lag-1 autocorrelation, $d \to 0$ strong positive (neighbours agree), $d \to 4$ strong negative (neighbours alternate).</p>
+</div>
+<div class="ex">
+<p>On §2.9.2's panels, exact $d$ against the approximation $2(1-\hat\rho_1)$, side by side. Healthy: $d = 1.989$<!-- prov: s02_remedies.json:dw_healthy --> vs $2(1-\hat\rho_1) = 2.003$<!-- prov: s02_remedies.json:dw_approx_healthy --> with $\hat\rho_1 = -0.0013$<!-- prov: s02_remedies.json:rho1_healthy --> - both say "textbook 2". Heteroscedastic: $d = 1.738$<!-- prov: s02_remedies.json:dw_heteroscedastic --> vs $1.740$<!-- prov: s02_remedies.json:dw_approx_heteroscedastic --> with $\hat\rho_1 = 0.130$<!-- prov: s02_remedies.json:rho1_heteroscedastic --> - mildly low, but independence is not this panel's disease. Autocorrelated: $d = 0.456$<!-- prov: s02_remedies.json:dw_autocorrelated --> vs $2(1-\hat\rho_1) = 0.479$<!-- prov: s02_remedies.json:dw_approx_autocorrelated --> with $\hat\rho_1 = 0.761$<!-- prov: s02_remedies.json:rho1_autocorrelated -->. Neither pair matches exactly, and the gap $2(1-\hat\rho_1) - d$ is <em>exactly</em> the dropped end terms $(e_1^2 + e_N^2)/\sum_t e_t^2$ - of order $1/N$, but sized by the draw's two boundary residuals rather than by the autocorrelation: here $0.0133$<!-- prov: s02_remedies.json:dw_gap_healthy --> healthy, $0.0026$<!-- prov: s02_remedies.json:dw_gap_heteroscedastic --> heteroscedastic, $0.0228$<!-- prov: s02_remedies.json:dw_gap_autocorrelated --> autocorrelated. Treat $d \approx 2(1-\hat\rho_1)$ as a reading aid, not an identity.</p>
+</div>
+<div class="note">
+<p><strong>What Durbin–Watson cannot do.</strong> Three limits worth naming in an exam. (i) It tests <em>lag-1</em> dependence only - seasonal or higher-order autocorrelation can leave $d \approx 2$. (ii) Its exact null distribution depends on the design matrix $X$, so the classical tables give two critical values $d_L &lt; d_U$ with an <em>inconclusive band</em> between them where the test simply refuses to answer. (iii) It is not valid when a lagged copy of the response sits among the regressors. The general-purpose replacement for all three is the Breusch–Godfrey LM test, which regresses the residuals on the regressors plus their own first $q$ lags and refers $N R^2$ of that auxiliary fit to a $\chi^2_q$ null - same recipe as Breusch–Pagan below, aimed at dependence instead of variance.</p>
+</div>
+
+<div class="defn">
+<p><strong>Breusch–Pagan, worked stepwise.</strong> The test asks: can the regressors predict how big the squared errors are? Under homoscedasticity they cannot. On the heteroscedastic panel:</p>
+<ol class="compact">
+<li>Fit OLS, keep the residuals $e_i$.</li>
+<li>Run the <em>auxiliary regression</em> $e_i^2 = \gamma_0 + \gamma_1 x_i + v_i$. Here $R^2_{\text{aux}} = 0.18194$<!-- prov: s02_remedies.json:bp_aux_r2 --> - the fan-out is very predictable from $x$.</li>
+<li>The LM statistic is $N R^2_{\text{aux}} = 60 \times 0.18194 = 10.916$<!-- prov: s02_remedies.json:bp_n --><!-- prov: s02_remedies.json:bp_aux_r2 --><!-- prov: s02_remedies.json:bp_stat -->.</li>
+<li>Refer it to $\chi^2_k$ with $k = 1$<!-- prov: s02_remedies.json:bp_df --> (one regressor in the auxiliary fit): $p = 0.000953$<!-- prov: s02_remedies.json:bp_p -->. Homoscedasticity is decisively rejected.</li>
+</ol>
+<p>Cross-check: <code>statsmodels.stats.diagnostic.het_breuschpagan</code> returns the LM statistic $10.916$<!-- prov: s02_remedies.json:bp_statsmodels_stat --> - <em>exactly</em> the manual $N R^2_{\text{aux}}$, to the last digit<!-- prov: s02_remedies.json:bp_lm_match -->, because that is literally what the LM form is. It also reports an F-form companion, $F = 12.899$<!-- prov: s02_remedies.json:bp_statsmodels_f --> with $p = 0.000678$<!-- prov: s02_remedies.json:bp_statsmodels_f_p -->: the small-sample variant of the same test, not a discrepancy.</p>
+</div>
+<div class="note">
+<p><strong>Which residuals, exactly.</strong> The statistics above are computed on the drawn residual vectors themselves - the same vectors §2.9.2 plots. Embed them in a response via the generating line $y = 2 + 0.5x$<!-- prov: s02_remedies.json:true_intercept --><!-- prov: s02_remedies.json:true_slope --> (used throughout §2.9.5) and refit, and the residuals become $M\boldsymbol\varepsilon$: Breusch–Pagan moves to $6.90$<!-- prov: s02_remedies.json:bp_stat_refit --> ($p = 0.0086$<!-- prov: s02_remedies.json:bp_p_refit -->) and Durbin–Watson to $0.595$<!-- prov: s02_remedies.json:dw_refit_autocorrelated -->, though every verdict is unchanged. The standard errors of §2.9.5 are immune to this distinction: $M$ annihilates $[\mathbf{1}, \mathbf{x}]$ (§2.8), so the refit residuals - and every SE built from them - are identical whichever way the panel is embedded.</p>
+</div>
+
+<p><strong>The QQ plot</strong> is the normality row's detector. Standardise the residuals, sort them, and plot the $i$-th smallest against the corresponding theoretical normal quantile $\Phi^{-1}\!\big(\tfrac{i - 1/2}{N}\big)$: if the residuals are Gaussian the points hug the 45-degree reference line. Departures have signatures: <em>heavy tails</em> bend both ends away from the line into an S (low end too low, high end too high); <em>skew</em> curls the whole plot into a one-sided banana; discrete or truncated data shows as staircases and flat spots. Fig. 2.7 runs it on all three panels, and adds the three pictures this pair of subsections needs.</p>
+
+<figure>
+<img class="fig" src="img/fig_012.png" alt="QQ plots of the three residual panels with Shapiro-Wilk p-values, a lag plot of the autocorrelated residuals, a bar chart of naive, HC3, WLS and bootstrap slope SEs, and the bootstrap slope histogram with its 95 percent CI">
+<div class="figcap"><span class="fnum">Fig. 2.7</span> - Detection and remedies on §2.9.2's own panels. Top row: normal QQ plots of the standardised residuals, Shapiro–Wilk $p$ annotated. Healthy hugs the line ($p = 0.501$<!-- prov: s02_remedies.json:shapiro_p_healthy -->). Heteroscedastic peels away in the tails with one stray upper point ($p = 0.027$<!-- prov: s02_remedies.json:shapiro_p_heteroscedastic -->, the only rejection): mixing many variances makes the marginal distribution heavier-tailed than one Gaussian. Autocorrelated also hugs the line ($p = 0.323$<!-- prov: s02_remedies.json:shapiro_p_autocorrelated -->) even though $d = 0.456$<!-- prov: s02_remedies.json:dw_autocorrelated --> screams - dependence is invisible to a normality plot. Bottom left: lag plot $e_t$ vs $e_{t-1}$ for the autocorrelated panel; the tilted cloud <em>is</em> $\hat\rho_1 = 0.761$<!-- prov: s02_remedies.json:rho1_autocorrelated -->. Bottom centre: four slope SEs on the heteroscedastic panel - naive $0.108$<!-- prov: s02_remedies.json:ols_se_naive -->, HC3 $0.113$<!-- prov: s02_remedies.json:hc3_se -->, WLS $0.093$<!-- prov: s02_remedies.json:wls_se -->, pairs bootstrap $0.110$<!-- prov: s02_remedies.json:boot_se --> - §2.9.5's story in one picture. Bottom right: histogram of the $B = 4000$<!-- prov: s02_remedies.json:boot_B --> bootstrap slopes with the 95% percentile CI $[0.166,\ 0.587]$<!-- prov: s02_remedies.json:boot_ci_lo --><!-- prov: s02_remedies.json:boot_ci_hi --> dashed.</div>
+</figure>
+<!-- prov: s02_remedies.json:fig_panels -->
+
+<div class="summary">
+<p><strong>Interpretation.</strong> Shapiro–Wilk is the QQ plot turned into a number - it correlates the sorted residuals with their expected normal order statistics and rejects when the correlation is too low - and the three $p$-values ($0.501$<!-- prov: s02_remedies.json:shapiro_p_healthy -->, $0.027$<!-- prov: s02_remedies.json:shapiro_p_heteroscedastic -->, $0.323$<!-- prov: s02_remedies.json:shapiro_p_autocorrelated -->) are printed in the figure. The exam-grade observation is the third one: the autocorrelated panel <em>passes</em> a normality test while its Durbin–Watson is catastrophic. Normality diagnostics check the marginal distribution and are completely blind to dependence between residuals - each detector in §2.9.1's table sees exactly its own violation and no other, which is why the table pairs every assumption with its own instrument. The other named distribution test, Kolmogorov–Smirnov, is stated and computed in §2.12.4.</p>
+</div>
+
+<h4>2.9.5 &nbsp; Remedies, worked: robust SEs, WLS, HAC, the bootstrap and IV <span class="tag">example</span></h4>
+<p>Every entry in §2.9.1's Remedy column is one of three moves. <em>Fix the standard errors</em> and keep the OLS estimate (robust/HC SEs for heteroscedasticity, HAC for autocorrelation) - right whenever the violation only breaks inference. <em>Reweight the fit</em> (WLS) - buys back efficiency on top of valid SEs, at the price of modelling the variance. <em>Fix the estimate itself</em> (IV/2SLS) - required when exogeneity fails, because then $\hat{\boldsymbol\beta}$ is biased and no SE surgery helps. The bootstrap sidesteps the formulas entirely and measures the sampling variability by resampling. (The multicollinearity row's remedies - drop a column, Ridge, PCA - are §2.11's subject; the zero-mean row's remedy is simply "include an intercept".) All numbers below live on §2.9.2's panels, embedded via $y = 2 + 0.5x$<!-- prov: s02_remedies.json:true_intercept --><!-- prov: s02_remedies.json:true_slope -->, plus one new simulated endogenous dataset.</p>
+
+<div class="defn">
+<p><strong>Robust (White / HC) standard errors.</strong> The naive formula $\hat\sigma^2 (X^{\!\top}X)^{-1}$ of §2.12.1 assumes $\operatorname{Var}(\boldsymbol\varepsilon) = \sigma^2 I$. Drop that and the true covariance of $\hat{\boldsymbol\beta}$ is the <em>sandwich</em></p>
+$$\operatorname{Var}(\hat{\boldsymbol\beta}) = (X^{\!\top}X)^{-1}\, X^{\!\top}\Omega X \,(X^{\!\top}X)^{-1}, \qquad \Omega = \operatorname{diag}(\sigma_1^2,\dots,\sigma_N^2),$$
+<p>and White's observation is that you never need to know the $\sigma_i^2$ individually: plugging $\hat\Omega = \operatorname{diag}(e_i^2)$ into the middle gives a consistent estimate (HC0). The refinements rescale each $e_i^2$ to undo small-sample and leverage effects - recall from §2.9.3 that high-leverage points have artificially small residuals, $\operatorname{Var}(e_i) = \sigma^2(1-h_{ii})$.</p>
+</div>
+<div class="ex">
+<p>On the heteroscedastic panel, the slope's SE under each recipe:</p>
+<div class="scrollx">
+<table>
+<tr><th>variant</th><th>weight on $e_i^2$</th><th>corrects for</th><th>SE(slope)</th></tr>
+<tr><td>naive OLS</td><td>$\hat\sigma^2$ pooled</td><td>- (assumes homoscedasticity)</td><td class="num">0.1080<!-- prov: s02_remedies.json:ols_se_naive --></td></tr>
+<tr><td>HC0</td><td>$e_i^2$</td><td>heteroscedasticity, asymptotically</td><td class="num">0.1083<!-- prov: s02_remedies.json:hc0_se --></td></tr>
+<tr><td>HC1</td><td>$\tfrac{N}{N-p}\,e_i^2$</td><td>+ small-sample df</td><td class="num">0.1101<!-- prov: s02_remedies.json:hc1_se --></td></tr>
+<tr><td>HC2</td><td>$e_i^2/(1-h_{ii})$</td><td>+ leverage</td><td class="num">0.1108<!-- prov: s02_remedies.json:hc2_se --></td></tr>
+<tr><td>HC3</td><td>$e_i^2/(1-h_{ii})^2$</td><td>+ leverage, conservatively (close to the jackknife)</td><td class="num">0.1135<!-- prov: s02_remedies.json:hc3_se --></td></tr>
+</table>
+</div>
+<p>The slope estimate itself is untouched at $0.363$<!-- prov: s02_remedies.json:ols_slope --> in every row - robust SEs change <em>only</em> the uncertainty attached to it. And an honest surprise: the naive-to-HC3 ratio is just $1.051$<!-- prov: s02_remedies.json:ratio_hc3_naive -->. Textbook lore says heteroscedasticity leaves naive SEs badly understated, but on this panel the design is a symmetric grid with high leverage at <em>both</em> ends while the variance is high only at the right end, so the classic understatement largely cancels for the slope. The general lesson survives - the naive formula is wrong whenever Breusch–Pagan fires and the sandwich is correct either way - but the numeric gap need not be dramatic; the panel's louder argument is WLS's efficiency below.</p>
+</div>
+
+<details class="code"><summary>Code - the HC3 sandwich by hand vs statsmodels (numpy)</summary>
+<pre><code>import numpy as np
+import statsmodels.api as sm
+
+# heteroscedastic panel: x = np.linspace(1, 10, 60), y = 2 + 0.5*x + resid <!-- prov: s02_remedies.json:panel_embed_note -->
+X = sm.add_constant(x)
+fit = sm.OLS(y, X).fit()                       # naive SE(slope) = 0.1080 <!-- prov: s02_remedies.json:ols_se_naive -->
+e = fit.resid
+h = fit.get_influence().hat_matrix_diag        # the leverages of 2.9.3
+
+bread = np.linalg.inv(X.T @ X)
+meat  = X.T @ np.diag(e**2 / (1 - h)**2) @ X   # HC3 rescaling: e_i^2 / (1 - h_ii)^2
+se_hc3 = np.sqrt((bread @ meat @ bread)[1, 1]) # 0.11347 <!-- prov: s02_remedies.json:hc3_se -->
+
+fit3 = sm.OLS(y, X).fit(cov_type="HC3")
+# fit3.bse[1] = 0.11347 - matches the manual value to at least 6 dp (hc3_match: true) <!-- prov: s02_remedies.json:hc3_se_sm --><!-- prov: s02_remedies.json:hc3_match -->
+# fit3.params[1] = 0.363 = fit.params[1] - the estimate never moves, only its SE does <!-- prov: s02_remedies.json:ols_slope -->
+</code></pre>
+<p class="wnote">HC3's $(1-h_{ii})^{-2}$ makes it the most conservative of the four and approximately a leave-one-out jackknife, which is why it is the usual default at modest $n$; here the protection costs nothing - the ratio to naive is $1.051$<!-- prov: s02_remedies.json:ratio_hc3_naive -->, so you pay a trivial widening for validity under any variance pattern.</p>
+</details>
+
+<div class="defn">
+<p><strong>Weighted least squares.</strong> If $\operatorname{Var}(\varepsilon_i) = \sigma_i^2$ is known (or estimable), minimise $\sum_i w_i\,(y_i - \mathbf{x}_i^{\!\top}\boldsymbol\beta)^2$ with $w_i = 1/\sigma_i^2$ - equivalently, divide every row by $\sigma_i$ and run OLS on the rescaled data. The rescaled errors are homoscedastic again, so both the naive SE formula and least-squares efficiency are restored: precise observations get a big say, noisy ones a small one. The feasible recipe used here: regress $\log e_i^2$ from the OLS fit on $[1, x]$, take $\hat\sigma_i^2 = \exp(\text{fitted value})$, and weight by $w_i = 1/\hat\sigma_i^2$<!-- prov: s02_remedies.json:wls_weight_recipe -->.</p>
+</div>
+<div class="ex">
+<p>WLS with those estimated weights gives slope $0.481$<!-- prov: s02_remedies.json:wls_slope --> with SE $0.0929$<!-- prov: s02_remedies.json:wls_se --> - against naive $0.1080$<!-- prov: s02_remedies.json:ols_se_naive --> and HC3 $0.1135$<!-- prov: s02_remedies.json:hc3_se -->, a genuine precision gain, not just honest reporting. With the <em>generating</em> weights (the panel was built with $\text{sd}_i = 0.25 + 0.32\,x_i$ exactly<!-- prov: s02_remedies.json:hetero_sd_truth -->) the slope is $0.463$<!-- prov: s02_remedies.json:wls_true_weights_slope --> with SE $0.0844$<!-- prov: s02_remedies.json:wls_true_weights_se --> - the efficiency ceiling. One reading discipline: this draw's OLS slope $0.363$<!-- prov: s02_remedies.json:ols_slope --> landed well below the generating $0.5$<!-- prov: s02_remedies.json:true_slope -->, and both WLS fits happen to land closer. That is luck of the draw, not bias correction - OLS is unbiased here and WLS is merely <em>less variable</em>; on another seed the ordering could flip. Caveat for the exam: estimated weights are themselves noisy, and a misspecified variance function can make feasible WLS worse than OLS-plus-robust-SEs. Robust SEs are the safe default; WLS is the efficiency play when you can defend the variance model.</p>
+</div>
+
+<p><strong>HAC (Newey–West) SEs</strong> are the same sandwich idea pointed at autocorrelation. On the autocorrelated panel the naive slope SE is $0.0506$<!-- prov: s02_remedies.json:auto_se_naive -->, computed as if the $n = 60$<!-- prov: s02_remedies.json:panel_n --> residuals were $n$ independent pieces of information - but with $\hat\rho_1 = 0.761$<!-- prov: s02_remedies.json:rho1_autocorrelated --> they are closer to a few dozen. HAC fills the sandwich's middle with autocovariance terms up to a truncation lag $L$, downweighted by Bartlett-kernel weights $w_\ell = 1 - \ell/(L+1)$ so the matrix stays positive semi-definite. The rule-of-thumb $L = \lfloor 4(n/100)^{2/9} \rfloor$ gives $L = 3$ here<!-- prov: s02_remedies.json:hac_rule --><!-- prov: s02_remedies.json:hac_maxlags -->, and the HAC SE is $0.0742$<!-- prov: s02_remedies.json:hac_se --> - a ratio of $1.466$<!-- prov: s02_remedies.json:ratio_hac_naive --> over naive. But watch the lag sensitivity: $L = 1$ gives $0.0620$<!-- prov: s02_remedies.json:hac_se_lag1 --> and $L = 8$ gives $0.0780$<!-- prov: s02_remedies.json:hac_se_lag8 --> - materially different answers from equally defensible truncation choices, with nothing in the data to announce the right $L$. At $n = 60$ with dependence this strong, even the rule-based value likely still understates the true inflation. HAC is a correction, not a cure: when Durbin–Watson reads $0.456$<!-- prov: s02_remedies.json:dw_autocorrelated -->, the table's first-listed remedy - actually model the dynamics with a time-series specification - is the right move, with HAC reserved for mild or nuisance-level dependence.</p>
+
+<p><strong>The bootstrap</strong> sidesteps every formula above. Resample the $n$ rows $(x_i, y_i)$ <em>with replacement</em> to build a same-size pseudo-dataset; refit OLS and record the slope; repeat $B$ times. The standard deviation of the $B$ slopes estimates the SE with no distributional assumptions, and the empirical 2.5% and 97.5% quantiles form the 95% <em>percentile confidence interval</em> - which is why the table lists it as the normality row's remedy: small-sample inference without assumption 7. On the heteroscedastic panel with $B = 4000$<!-- prov: s02_remedies.json:boot_B -->, the bootstrap SE is $0.1103$<!-- prov: s02_remedies.json:boot_se --> - agreeing with the sandwich family (HC3 $0.1135$<!-- prov: s02_remedies.json:hc3_se -->) because resampled rows carry their own variances with them. The percentile CI $[0.166,\ 0.587]$<!-- prov: s02_remedies.json:boot_ci_lo --><!-- prov: s02_remedies.json:boot_ci_hi --> is wide but honest, and comfortably contains the generating $0.5$<!-- prov: s02_remedies.json:true_slope --> even though this draw's point estimate sits at $0.363$<!-- prov: s02_remedies.json:ols_slope -->; the bootstrap mean $0.364$<!-- prov: s02_remedies.json:boot_slope_mean --> shows negligible resampling bias.</p>
+
+<details class="code"><summary>Code - pairs bootstrap for the slope (numpy)</summary>
+<pre><code>rng = np.random.default_rng(20260818)          # fixed seed, recorded in the compute JSON <!-- prov: s02_remedies.json:boot_seed -->
+B, n = 4000, 60                                # <!-- prov: s02_remedies.json:boot_B --><!-- prov: s02_remedies.json:panel_n -->
+slopes = np.empty(B)
+for b in range(B):
+    idx = rng.integers(0, n, size=n)           # resample ROWS with replacement: pairs (x_i, y_i)
+    slopes[b] = np.linalg.lstsq(X[idx], y[idx], rcond=None)[0][1]
+
+slopes.std(ddof=1)                             # 0.1103; naive 0.1080, HC3 0.1135 <!-- prov: s02_remedies.json:boot_se --><!-- prov: s02_remedies.json:ols_se_naive --><!-- prov: s02_remedies.json:hc3_se -->
+np.percentile(slopes, [2.5, 97.5])             # [0.166, 0.587] - the 95% percentile CI <!-- prov: s02_remedies.json:boot_ci_lo --><!-- prov: s02_remedies.json:boot_ci_hi -->
+slopes.mean()                                  # 0.364 vs full-sample 0.363: negligible resampling bias <!-- prov: s02_remedies.json:boot_slope_mean --><!-- prov: s02_remedies.json:ols_slope -->
+</code></pre>
+<p class="wnote">Resampling <em>pairs</em> keeps each $y_i$ glued to its own $x_i$, so every pseudo-dataset inherits the panel's heteroscedasticity - that is what makes this variant heteroscedasticity-safe. The alternative, the residual bootstrap, reattaches shuffled residuals to arbitrary rows and thereby silently assumes homoscedasticity; on this panel it would answer the wrong question.</p>
+</details>
+
+<p><strong>Instrumental variables</strong> handle the one violation whose damage no SE can repair: exogeneity failure biases $\hat{\boldsymbol\beta}$ itself (§2.9.1's "biased &amp; inconsistent" row). The worked demo simulates an omitted confounder on $n = 500$<!-- prov: s02_remedies.json:iv_n -->: $x = 0.8z + 0.7u + 0.5v$, $e = 0.8u + 0.5\varepsilon$, $y = 2 + 1.5x + e$, where $u$ is the unobserved confounder and $z$ the instrument<!-- prov: s02_remedies.json:iv_design -->. OLS returns slope $1.933$<!-- prov: s02_remedies.json:iv_ols_slope --> against the true $\beta = 1.5$<!-- prov: s02_remedies.json:true_beta --> - bias $+0.433$<!-- prov: s02_remedies.json:iv_ols_bias -->, because $u$ pushes $x$ and $y$ together and OLS credits $x$ with $u$'s work. A valid instrument needs <em>relevance</em> (correlated with $x$) and <em>exclusion</em> (affects $y$ only through $x$); then the just-identified 2SLS estimator $\hat{\boldsymbol\beta}_{\text{IV}} = (Z^{\!\top}X)^{-1}Z^{\!\top}\mathbf{y}$ recovers $1.529$<!-- prov: s02_remedies.json:iv_2sls_slope --> with SE $0.0509$<!-- prov: s02_remedies.json:iv_se -->. Relevance is checkable: the first stage regresses $x$ on $z$, and its $F$ is $443.5$<!-- prov: s02_remedies.json:first_stage_F -->, far beyond the $F &gt; 10$ folk rule below which instruments are "weak" and 2SLS becomes unreliable. Exclusion is <em>not</em> checkable in the just-identified case - it is defended by theory, which is why the table's Detection cell for exogeneity starts with "theory".</p>
+
+<p>The formal OLS-vs-IV comparison is the <strong>Hausman test</strong>: under exogeneity both estimators are consistent and should agree, so a large gap indicts OLS. The contrast form on the slope, $H = (\hat\beta_{\text{OLS}} - \hat\beta_{\text{IV}})^2 / \big(\widehat{\operatorname{Var}}(\hat\beta_{\text{IV}}) - \widehat{\operatorname{Var}}(\hat\beta_{\text{OLS}})\big)$ with each estimator's own classical variance and $1$ df<!-- prov: s02_remedies.json:hausman_method -->, gives $H = 96.6$<!-- prov: s02_remedies.json:hausman_stat --> on $\chi^2_1$, $p = 8.6\times 10^{-23}$<!-- prov: s02_remedies.json:hausman_p -->: the two estimates differ by far more than sampling noise allows, so report IV. (A control-function cross-check - regress $y$ on $x$ plus the first-stage residual and $t$-test that residual's coefficient - gives $t = 15.63$<!-- prov: s02_remedies.json:hausman_cf_t -->; the two forms are asymptotically equivalent only under $H_0$ and differ numerically here, but both reject beyond doubt.) Exam-level depth is recognising the situation and naming the tool - omitted confounder, instrument, 2SLS, Hausman; the numbers above prove the mechanics work on one dataset where the truth is known.</p>
+
+<details class="code"><summary>Code - just-identified 2SLS and the first-stage F (numpy + statsmodels)</summary>
+<pre><code># endogenous design, n = 500: x = 0.8*z + 0.7*u + 0.5*v;  e = 0.8*u + 0.5*eps;  y = 2 + 1.5*x + e <!-- prov: s02_remedies.json:iv_n --><!-- prov: s02_remedies.json:iv_design -->
+Z  = sm.add_constant(z)                        # instrument matrix
+Xd = sm.add_constant(x)                        # endogenous regressor matrix
+beta_iv = np.linalg.solve(Z.T @ Xd, Z.T @ y)   # (Z'X)^-1 Z'y -&gt; slope 1.529 <!-- prov: s02_remedies.json:iv_2sls_slope -->
+
+from statsmodels.sandbox.regression.gmm import IV2SLS   # statsmodels 0.14.6 <!-- prov: s02_remedies.json:statsmodels_version -->
+res = IV2SLS(y, Xd, instrument=Z).fit()
+# res.params[1] = 1.529 and res.bse[1] = 0.0509 - both match the manual computation (iv_check_agree: true) <!-- prov: s02_remedies.json:iv_2sls_slope_sm --><!-- prov: s02_remedies.json:iv_se_sm --><!-- prov: s02_remedies.json:iv_check_agree -->
+
+sm.OLS(x, Z).fit().fvalue                      # first-stage F = 443.5; folk rule wants F &gt; 10 <!-- prov: s02_remedies.json:first_stage_F -->
+</code></pre>
+<p class="wnote">OLS on the same data gives slope $1.933$<!-- prov: s02_remedies.json:iv_ols_slope --> - biased by $+0.433$<!-- prov: s02_remedies.json:iv_ols_bias --> and no robust SE would flag it: the fit looks healthy on every §2.9.2 diagnostic because the confounding lives in what was <em>not</em> measured. That is why the exogeneity row's detection is theory first, Hausman second.</p>
+</details>
+
+<p>Finally, the whole Remedy column translated into code, one line per table row:</p>
+<div class="scrollx">
+<table>
+<tr><th>§2.9.1 row</th><th>remedy</th><th>statsmodels spelling</th><th>when</th></tr>
+<tr><td>Homoscedasticity</td><td>robust (White/HC) SEs</td><td><code>sm.OLS(y, X).fit(cov_type="HC3")</code></td><td>heteroscedasticity of unknown form; you only need honest SEs</td></tr>
+<tr><td>Homoscedasticity</td><td>WLS</td><td><code>sm.WLS(y, X, weights=w).fit()</code></td><td>variance function known or credibly estimable; efficiency on top of validity</td></tr>
+<tr><td>Independent errors</td><td>HAC (Newey–West) SEs</td><td><code>sm.OLS(y, X).fit(cov_type="HAC", cov_kwds={"maxlags": L, "use_correction": True})</code><!-- prov: s02_remedies.json:hac_use_correction --></td><td>autocorrelated errors you choose not to model; pick $L$ consciously and check sensitivity</td></tr>
+<tr><td>Normality of errors</td><td>bootstrap</td><td>pairs loop (no one-liner; see the pairs-bootstrap code above)</td><td>distribution-free SEs and CIs; doubles as heteroscedasticity-safe</td></tr>
+<tr><td>Exogeneity</td><td>IV / 2SLS</td><td><code>IV2SLS(y, X, instrument=Z).fit()</code></td><td>endogenous regressor plus a credible instrument; the only fix that moves the estimate</td></tr>
+</table>
+</div>
+
+<div class="note">
+<p><strong>Interview line.</strong> "Heteroscedasticity and autocorrelation leave the OLS coefficients unbiased but the reported standard errors wrong, so I fix inference first - HC3 or Newey–West sandwich SEs, or a pairs bootstrap - and reach for WLS only when I can defend a variance model, for efficiency. Endogeneity is different in kind: the coefficient itself is biased, so I need an instrument and 2SLS, validated by the first-stage $F$ and a Hausman test." Pitfall to volunteer: robust SEs repair inference, never the estimate - they are not a licence to skip the diagnostics of §2.9.2, and they do nothing about a misspecified mean or an omitted confounder.</p>
+</div>
+
 <h3>2.10 &nbsp; How good is the fit? $R^2$, adjusted $R^2$ and the error metrics</h3>
 <p>The deck asks the reader to "understand $R^2$ vs adjusted $R^2$" and to "know MAE, MSE and RMSE" but writes down no formulas at all. This subsection fills that gap and then computes every one of them on the section's existing 5-student exam-score dataset from §2.7, so the numbers can be checked against a fit already in hand.</p>
 
@@ -1540,8 +1686,8 @@ $$\text{power} = 1-\beta = 0.853, \qquad \beta = P(\text{Type II error}) = 0.147
 </div>
 
 <figure>
-<img class="fig" src="img/fig_012.png" alt="Type I and Type II error regions under the null and alternative t distributions, plus the power curve">
-<div class="figcap"><span class="fnum">Fig. 2.7</span> - Left: the null distribution $t_2$ (centred at 0) and the alternative, a noncentral $t_2$ shifted to $\lambda = 6.19$. Red is the Type I region - the $\alpha=0.05$ the analyst chose, split across both tails beyond $\pm 4.303$. Purple is the Type II region - the alternative's mass that still falls <em>inside</em> the acceptance band, $\beta=0.147$. The observed $t=6.19$ sits in the rejection region. Right: power against the true effect size; the design clears 80% power only for effects above $4.38$ points per study hour.</div>
+<img class="fig" src="img/fig_013.png" alt="Type I and Type II error regions under the null and alternative t distributions, plus the power curve">
+<div class="figcap"><span class="fnum">Fig. 2.8</span> - Left: the null distribution $t_2$ (centred at 0) and the alternative, a noncentral $t_2$ shifted to $\lambda = 6.19$. Red is the Type I region - the $\alpha=0.05$ the analyst chose, split across both tails beyond $\pm 4.303$. Purple is the Type II region - the alternative's mass that still falls <em>inside</em> the acceptance band, $\beta=0.147$. The observed $t=6.19$ sits in the rejection region. Right: power against the true effect size; the design clears 80% power only for effects above $4.38$ points per study hour.</div>
 </figure>
 <!-- prov: s02_ols_stats.json:power -->
 
@@ -1769,7 +1915,7 @@ $$\boxed{\;\log\frac{p}{1-p} = \boldsymbol{\beta}^{\!\top}\mathbf{x}\;}$$
 </div>
 
 <figure>
-<img class="fig" src="img/fig_013.png" alt="Left: sigmoid curve and its derivative. Right: the logit link mapping probability to log-odds.">
+<img class="fig" src="img/fig_014.png" alt="Left: sigmoid curve and its derivative. Right: the logit link mapping probability to log-odds.">
 <div class="figcap"><span class="fnum">Fig. 3.1</span> - Left: the sigmoid $p=\sigma(z)$ and its derivative $p(1-p)$, which peaks at $0.25$ when $z=0$ and vanishes in both tails. Right: the inverse view - the logit $\ln[p/(1-p)]$ against $p$; the marked points at $p=0.268941$ and $p=0.731059$ map to log-odds $\mp1$.</div>
 </figure>
 <!-- prov: s03_logistic_core.json:sigmoid_table -->
@@ -1885,7 +2031,7 @@ $$\frac{d^{2}L_{\text{CE}}}{dw^{2}} = p(1-p) \;&gt;\; 0 \quad\text{for all } w .
 </div>
 
 <figure>
-<img class="fig" src="img/fig_014.png" alt="Three panels: per-sample penalty, gradient magnitude, and objective shape for MSE versus cross-entropy.">
+<img class="fig" src="img/fig_015.png" alt="Three panels: per-sample penalty, gradient magnitude, and objective shape for MSE versus cross-entropy.">
 <div class="figcap"><span class="fnum">Fig. 3.2</span> - Left: per-sample penalty against $p$ when $y=0$; cross-entropy diverges as $p\to1$ while squared error is bounded by $1$. The dotted verticals mark the two rows of the source's table. Middle: gradient magnitude with respect to $z$; the MSE curve <em>collapses</em> to $0.019602$ exactly where the model is most confidently wrong, while cross-entropy peaks there at $0.990000$. Right: the objective as a function of a single weight on the three-point dataset - the MSE curve is nearly flat and non-convex, the cross-entropy curve is a clean convex bowl.</div>
 </figure>
 <!-- prov: s03_logistic_core.json:whynot_mse_table -->
@@ -1996,7 +2142,7 @@ $z_A = -5.582563 + 0.710367(3) + 0.506542(5) = -0.918753$, so $p_A = \sigma(z_A)
 </div>
 
 <figure>
-<img class="fig" src="img/fig_015.png" alt="Left: three fitted sigmoid curves at different attendance levels. Right: probability contours in feature space with a straight p=0.5 boundary.">
+<img class="fig" src="img/fig_016.png" alt="Left: three fitted sigmoid curves at different attendance levels. Right: probability contours in feature space with a straight p=0.5 boundary.">
 <div class="figcap"><span class="fnum">Fig. 3.3</span> - Left: the fitted model sliced at three attendance levels. Each slice is the <em>same</em> sigmoid shifted horizontally - that is what "linear in the log-odds" looks like in probability space. Rug ticks show the actual pass/fail labels. Right: fitted probability over the whole feature plane; contours are parallel straight lines and the $p=0.5$ contour is the linear decision boundary, crossing $h=3.580280$ at attendance $6$.</div>
 </figure>
 <!-- prov: s03_inference.json:beta_hat -->
@@ -2095,7 +2241,7 @@ $$\frac{\partial L}{\partial \mathbf{W}} = \begin{pmatrix}-0.484851 &amp; -0.969
 </div>
 
 <figure>
-<img class="fig" src="img/fig_016.png" alt="Flow diagram contrasting the softmax branch and one-vs-rest branch with computed probabilities.">
+<img class="fig" src="img/fig_017.png" alt="Flow diagram contrasting the softmax branch and one-vs-rest branch with computed probabilities.">
 <div class="figcap"><span class="fnum">Fig. 3.4</span> - The source's "For Multiclass problem" branch redrawn with the numbers filled in. Left branch: one joint model, probabilities sum to $1.000000$ exactly. Right branch: three separate fits, probabilities sum to $1.689974$. Both pick dog; only the left one is calibrated.</div>
 </figure>
 <!-- prov: s03_multiclass.json:softmax_p -->
@@ -2168,7 +2314,7 @@ clf_ovr     = LogisticRegression(multi_class="ovr",         solver="liblinear") 
 </div>
 
 <figure>
-<img class="fig" src="img/fig_017.png" alt="Decision flowchart: response type, question to ask, link and likelihood to use.">
+<img class="fig" src="img/fig_018.png" alt="Decision flowchart: response type, question to ask, link and likelihood to use.">
 <div class="figcap"><span class="fnum">Fig. 3.5</span> - <code>glm_choice</code>: which link and model for which response type. Read left to right - the entry point is always the <em>response</em>, never the features. The dashed footer states the invariant: only the link and the likelihood change; the linear predictor $\boldsymbol{\eta}=\mathbf{X}\boldsymbol{\beta}$ $(n\times1)$ and the IRLS fitting loop are identical across every lane.</div>
 </figure>
 
@@ -2197,7 +2343,7 @@ $$\text{score } \mathbf{X}^{\!\top}(\mathbf{y}-\boldsymbol{\lambda})\;(2\times1)
 </div>
 
 <figure>
-<img class="fig" src="img/fig_018.png" alt="Left: counts with fitted exponential curve versus OLS straight line going negative. Right: Pearson residuals against fitted rate.">
+<img class="fig" src="img/fig_019.png" alt="Left: counts with fitted exponential curve versus OLS straight line going negative. Right: Pearson residuals against fitted rate.">
 <div class="figcap"><span class="fnum">Fig. 3.6</span> - Left: the log link produces a curve that is positive everywhere; the OLS straight line fitted to the same counts predicts $-6.397590$ orders at $x=-2$, while the Poisson GLM predicts $1.266240$. Right: Pearson residuals against fitted $\lambda$ - no funnel, no trend, all within $\pm2$, consistent with dispersion $0.430249$.</div>
 </figure>
 <!-- prov: s03_glm_family.json:ols_pred_at_x_minus2 -->
@@ -2283,7 +2429,7 @@ $$\pi_1(\mathbf{x}) = \gamma_1(\mathbf{x}), \qquad \pi_j(\mathbf{x}) = \gamma_j(
 </div>
 
 <figure>
-<img class="fig" src="img/fig_019.png" alt="Left: three parallel cumulative-probability curves. Right: stacked category probabilities at four covariate values.">
+<img class="fig" src="img/fig_020.png" alt="Left: three parallel cumulative-probability curves. Right: stacked category probabilities at four covariate values.">
 <div class="figcap"><span class="fnum">Fig. 3.7</span> - Left: the three cumulative curves $\gamma_j(x)=\sigma(\theta_j - 0.7x)$. They never cross and are horizontal translations of one another - the geometric signature of proportional odds. Right: the category probabilities $\pi_j$ obtained by differencing, stacked; as $x$ grows, mass migrates from level 1 toward level 4 and the modal level walks upward $2\to3\to3\to4$.</div>
 </figure>
 <!-- prov: s03_glm_family.json:ordinal_table -->
@@ -2467,7 +2613,7 @@ $$\boxed{\;C = \frac{1}{\lambda}\;}$$
 </div>
 
 <figure>
-<img class="fig" src="img/fig_020.png" alt="Coefficient paths for L2 and L1 against C, plus train and validation log-loss curves.">
+<img class="fig" src="img/fig_021.png" alt="Coefficient paths for L2 and L1 against C, plus train and validation log-loss curves.">
 <div class="figcap"><span class="fnum">Fig. 3.8</span> - Left and middle: coefficient paths against $C$ on a log axis; the two genuinely informative coefficients are drawn dark, the six noise coefficients grey. L1 drives noise coefficients to exactly zero (5 of 8 at $C=0.1$), L2 only shrinks them. Right: train log-loss falls monotonically with $C$ while validation log-loss is U-shaped, bottoming at $C=0.1$ - the underfit/overfit trade-off the source labels with its two arrows.</div>
 </figure>
 
@@ -2663,7 +2809,7 @@ $$\boxed{\;\mathbf{w}(t) \;=\; \mathbf{w}(t-1) \;-\; \eta\,\nabla L\big(\mathbf{
 <p><b>Why the two forms differ, and when it matters.</b> The normalised version moves a fixed <em>distance</em> $\eta$ every step; the unnormalised version moves a distance $\eta\|\nabla L\|$, which shrinks automatically as you approach a minimum. The unnormalised form is what gives gradient descent its natural braking near the optimum - and it is also why a badly scaled loss (gradients of magnitude $10^{4}$) blows up while the normalised form would not. Everything below uses the unnormalised form unless stated.</p>
 </div>
 
-<img class="fig" src="img/fig_021.png" alt="Left: a 1-D parabola with tangent lines at three successive iterates and horizontal arrows showing each step. Right: elliptical contours of a quadratic with a gradient-descent path that zig-zags across the valley toward the minimum.">
+<img class="fig" src="img/fig_022.png" alt="Left: a 1-D parabola with tangent lines at three successive iterates and horizontal arrows showing each step. Right: elliptical contours of a quadratic with a gradient-descent path that zig-zags across the valley toward the minimum.">
 <div class="figcap">Fig. 4.1 - (a) In one dimension the step is $-\eta L'(w)$; the illustrative iterates $2 \to 1.2 \to 0.72$ correspond to a shrink factor $1-2\eta = 0.6$, i.e. $\eta = 0.2$ on $L(w)=w^2$. (b) In two dimensions the step is perpendicular to the contour through the current point; on the elongated quadratic $L = w_1^2 + 10w_2^2$ with $\eta = 0.08$ this produces the characteristic zig-zag traced numerically in §4.3.</div>
 
 <h3>4.2 &nbsp; Batch, mini-batch and stochastic gradient descent</h3>
@@ -2734,7 +2880,7 @@ $B=N$ is <em>batch (full-batch) GD</em>; $B=1$ is <em>SGD</em>; $1&lt;B&lt;N$ is
 <p>After one epoch - <em>three</em> per-sample gradient evaluations - SGD has reached $L=0.271527$. Batch GD needed three full steps, i.e. <em>nine</em> per-sample gradients, to reach $0.287683$. Same data, same $\eta$: SGD got further on a third of the compute.</p>
 </div>
 
-<img class="fig" src="img/fig_022.png" alt="Two log-scale panels comparing full-batch, mini-batch and SGD: left, loss gap versus per-sample gradient evaluations, where SGD drops first; right, loss gap versus parameter updates, where full batch is smooth and lowest while SGD is noisy.">
+<img class="fig" src="img/fig_023.png" alt="Two log-scale panels comparing full-batch, mini-batch and SGD: left, loss gap versus per-sample gradient evaluations, where SGD drops first; right, loss gap versus parameter updates, where full batch is smooth and lowest while SGD is noisy.">
 <div class="figcap">Fig. 4.2 - A 200-point linear-regression problem ($\kappa = 3.07$, $\eta = 0.02$). (a) Per unit of <em>compute</em>, SGD is first to a low loss: it reaches within $1\%$ of $L^\star$ after $15$ per-sample gradients, mini-batch after $760$, full batch after $5000$. (b) Per <em>update</em> the ranking inverts - with the same budget of $250$ updates, full batch ends at $L=0.937431$ (exactly $L^\star$), mini-batch at $0.941166$, SGD at $0.977557$, and SGD's curve never settles.</div>
 
 <div class="summary">
@@ -2799,7 +2945,7 @@ $$w(t) \;=\; w(t-1) - \eta\cdot 2a\,w(t-1) \;=\; \underbrace{(1-2a\eta)}_{\texts
 <!-- prov: s04_lr_behaviour.json:oneD.regimes -->
 </div>
 
-<img class="fig" src="img/fig_023.png" alt="Left: iterate trajectories for four learning rates on a 1-D quadratic, showing slow decay, fast decay, damped oscillation and growing oscillation. Right: the absolute contraction factor as a V-shape in eta, zero at eta 0.5 and crossing 1 at eta 1.">
+<img class="fig" src="img/fig_024.png" alt="Left: iterate trajectories for four learning rates on a 1-D quadratic, showing slow decay, fast decay, damped oscillation and growing oscillation. Right: the absolute contraction factor as a V-shape in eta, zero at eta 0.5 and crossing 1 at eta 1.">
 <div class="figcap">Fig. 4.3 - (a) The four regimes as iterate sequences. (b) $|\rho| = |1-2\eta|$ is a V with its vertex at $\eta^\star = 0.5$ (one-step convergence) and roots of instability where it crosses $1$ at $\eta = 1$. Note the asymmetry that trips people up: halving a good $\eta$ merely slows you down, doubling it can destroy the run.</div>
 
 <h4>Why several dimensions are harder: the condition number</h4>
@@ -2958,7 +3104,7 @@ $$\mathbf{v}_\infty \;=\; -\eta\,\mathbf{g}\sum_{k=0}^{\infty}\beta^k \;=\; -\fr
 <p><b>Gotcha - momentum is not free acceleration.</b> Look at $L$ in the trace: it goes $6.42 \to 12.93 \to 0.66$. The loss <em>increased</em> at $t=2$, because the accumulated velocity carried $w_2$ straight past the valley floor to $-1.08$, further from zero than it started. Momentum makes the method non-monotone by construction. It also loosens the stability limit in an unexpected direction: on this surface the analytic bound becomes $\eta &lt; 2(1+\beta)/\lambda_{\max} = 0.19$ and the empirical scan diverges first at $\eta = 0.190$ <!-- prov: s04_traces.json:stability.analytic, stability.grid -->, so momentum tolerates a larger $\eta$ - but with $\beta=0.9$ it can be badly <em>underdamped</em>, spending its budget ringing rather than descending.</p>
 </div>
 
-<img class="fig" src="img/fig_024.png" alt="Left: contour plot with the plain gradient-descent path creeping along the valley while the momentum path advances much further in the same number of steps. Right: log-scale loss curves where momentum with a tuned beta descends far below plain gradient descent, and beta 0.9 oscillates.">
+<img class="fig" src="img/fig_025.png" alt="Left: contour plot with the plain gradient-descent path creeping along the valley while the momentum path advances much further in the same number of steps. Right: log-scale loss curves where momentum with a tuned beta descends far below plain gradient descent, and beta 0.9 oscillates.">
 <div class="figcap">Fig. 4.4 - An ill-conditioned surface $L = w_1^2 + 100w_2^2$ ($\kappa = 100$), $\eta = 0.009$ (just inside GD's limit $1/b = 0.01$). (a) In $120$ steps plain GD is still crawling along the valley; momentum has arrived. (b) After $200$ steps GD is at $L=0.0028$; momentum with the theoretically optimal $\beta = \big(\frac{\sqrt\kappa-1}{\sqrt\kappa+1}\big)^2 = 0.669$ passes $10^{-3}$ at $t=67$ and ends at $2.8\times10^{-11}$; the popular $\beta=0.9$ is underdamped here - it works, but it rings, passing $10^{-3}$ only at $t=98$.</div>
 
 <div class="summary">
@@ -3081,7 +3227,7 @@ def rmsprop_step(w, s, g, eta, rho=0.9, eps=1e-8):
 <p class="wnote">eps guards sqrt(0) on a coordinate that hasn't moved yet; AdaGrad's r never decreases so its rate decays as O(1/sqrt(t)) -- correct for sparse convex problems, a silent stopping bug on a long deep-net run (4.6's gotcha).</p>
 </details>
 
-<img class="fig" src="img/fig_025.png" alt="Two log-scale panels of effective per-coordinate step size over 60 iterations: AdaGrad's two curves decay monotonically far below the base learning rate, RMSProp's dip then rise back above it.">
+<img class="fig" src="img/fig_026.png" alt="Two log-scale panels of effective per-coordinate step size over 60 iterations: AdaGrad's two curves decay monotonically far below the base learning rate, RMSProp's dip then rise back above it.">
 <div class="figcap">Fig. 4.5 - Effective step size $\eta/(\sqrt{\text{state}}+\epsilon)$ per coordinate over $60$ iterations at base $\eta=0.08$. (a) AdaGrad decays monotonically for both coordinates, ending at $0.00375$ and $0.00108$ - a $21\times$ and $74\times$ reduction from which it cannot recover. (b) RMSProp's rate <em>rises</em> once the gradients shrink, ending at $0.4164$ and $0.1609$.</div>
 
 <div class="warn">
@@ -3110,7 +3256,7 @@ $$\mathbb{E}[\mathbf{m}(t)] \;=\; \mathbb{E}[\mathbf{g}]\,(1-\beta_1)\sum_{k=1}^
 
 <p>So $\mathbf{m}(t)$ underestimates the mean gradient by exactly the factor $1-\beta_1^{\,t}$, which is $0.1$ at $t=1$ - a tenfold shrinkage. Dividing by that factor makes the estimate unbiased; identical algebra gives $1-\beta_2^{\,t}$ for the second moment, where the effect is far more violent because $\beta_2=0.999$ makes $1-\beta_2^{\,1} = 0.001$.</p>
 
-<img class="fig" src="img/fig_026.png" alt="Two curves over ten iterations on a constant gradient of one: the raw first moment climbs slowly from 0.1 toward 0.65 while the bias-corrected estimate sits exactly on 1 from the first step.">
+<img class="fig" src="img/fig_027.png" alt="Two curves over ten iterations on a constant gradient of one: the raw first moment climbs slowly from 0.1 toward 0.65 while the bias-corrected estimate sits exactly on 1 from the first step.">
 <div class="figcap">Fig. 4.6 - Feed Adam a constant gradient $g=1$. The raw $m(t)$ starts at $0.1$ and is still only $0.651$ after ten steps; the corrected $\hat m(t) = m(t)/(1-\beta_1^t)$ equals $1$ at every $t$. Without the correction, Adam's first ten steps would be systematically too small.</div>
 
 <div class="ex">
@@ -3173,7 +3319,7 @@ def lr_range_test(grad_fn, loss_fn, w0, eta_min=1e-6, eta_max=1.0, n_steps=100):
 
 <h3>4.8 &nbsp; Six optimizers, one surface</h3>
 
-<img class="fig" src="img/fig_027.png" alt="Two log-scale loss-curve panels comparing six optimizers on the same ill-conditioned quadratic: on the left at a shared learning rate where Nesterov diverges and the adaptive methods look slow, on the right with each optimizer at its own tuned learning rate where the ranking changes completely.">
+<img class="fig" src="img/fig_028.png" alt="Two log-scale loss-curve panels comparing six optimizers on the same ill-conditioned quadratic: on the left at a shared learning rate where Nesterov diverges and the adaptive methods look slow, on the right with each optimizer at its own tuned learning rate where the ranking changes completely.">
 <div class="figcap">Fig. 4.7 - All six rules on $L = w_1^2+100w_2^2$ from $\mathbf{w}(0)=(-2,1)$, $200$ steps. (a) At the shared $\eta=0.009$: Nesterov diverges, AdaGrad stalls at $L=62.34$, RMSProp and Adam look mediocre because their step size is pinned near $\eta$ and $2/0.009 \approx 222$ steps are needed just to cross the domain. (b) With each optimizer's own tuned $\eta$ (grid search over $[10^{-4},1]$, best final loss): Nesterov is the best of the five non-degenerate rules at $\eta=0.0054$ ($L&lt;10^{-6}$ by step $93$, final $1.5\times10^{-11}$) - AdaGrad's apparently better $L=0$ at $\eta=1$ is the artefact adjudicated in the note below. Adam at $\eta=0.398$ reaches $1.7\times10^{-9}$, momentum at $\eta=0.0185$ reaches $6.0\times10^{-9}$, and plain GD is last at $3.9\times10^{-3}$.</div>
 
 <div class="note">
@@ -3194,7 +3340,7 @@ def lr_range_test(grad_fn, loss_fn, w0, eta_min=1e-6, eta_max=1.0, n_steps=100):
 
 <h3>4.9 &nbsp; Choosing an optimizer</h3>
 
-<img class="fig" src="img/fig_028.png" alt="Decision flowchart: closed form if convex and cheap; full-batch gradient descent if the batch fits; otherwise mini-batch, then adaptive methods if gradients are sparse or badly scaled, SGD with Nesterov momentum if you can tune, AdamW as the default.">
+<img class="fig" src="img/fig_029.png" alt="Decision flowchart: closed form if convex and cheap; full-batch gradient descent if the batch fits; otherwise mini-batch, then adaptive methods if gradients are sparse or badly scaled, SGD with Nesterov momentum if you can tune, AdamW as the default.">
 <div class="figcap">Fig. 4.8 - Optimizer decision flowchart. The first two questions are the ones most often skipped: if a closed form exists and is cheap, no iterative method is needed at all, and if the full gradient is affordable there is no reason to accept stochastic noise.</div>
 
 <div class="note">
@@ -3216,7 +3362,7 @@ $$\boldsymbol\phi(x_1,x_2) = \big(1,\;x_1,\;x_2,\;x_1x_2,\;x_1^2,\;x_2^2\big) \i
 <!-- prov: s04_transform.json:best_linear_x_error, z_error, n_pos --></p>
 </div>
 
-<img class="fig" src="img/fig_029.png" alt="Left: labelled points in the original plane with a circular boundary that no straight line can reproduce. Right: the same points after squaring both coordinates, now separated by a straight line.">
+<img class="fig" src="img/fig_030.png" alt="Left: labelled points in the original plane with a circular boundary that no straight line can reproduce. Right: the same points after squaring both coordinates, now separated by a straight line.">
 <div class="figcap">Fig. 4.9 - The transform of v5's Fig 6.1, recomputed on real data. (a) In $\mathbf{x}$-space the best straight line misclassifies $32.5\%$. (b) In $\mathbf{z} = (x_1^2, x_2^2)$ space the circle $x_1^2+x_2^2=0.6$ <em>is</em> the line $z_1+z_2=0.6$, error $0\%$. Note the geometry: squaring folds all four quadrants onto the positive one, so $\boldsymbol\phi$ is four-to-one and information is genuinely destroyed - it happens not to be information this label needs.</div>
 
 <div class="warn">
@@ -3395,7 +3541,7 @@ $$\boxed{F_\beta = (1+\beta^2)\,\frac{P \cdot R}{\beta^2 \cdot P + R}}$$
 <p>Because $P>R$ here, the three scores order as $F_{0.5}(0.769) > F_1(0.727) > F_2(0.690)$: the variant that weights your <em>weaker</em> metric more heavily always reports the harsher score. This ordering is not a coincidence of these numbers - it holds whenever $P\ne R$, because increasing $\beta$ monotonically shifts $F_\beta$ toward the smaller of $P,R$.</p>
 </div>
 
-<img class="fig" src="img/fig_030.png" alt="F-beta score as a function of beta on the fraud-screen numbers, with precision-focus and recall-focus zones shaded">
+<img class="fig" src="img/fig_031.png" alt="F-beta score as a function of beta on the fraud-screen numbers, with precision-focus and recall-focus zones shaded">
 <div class="figcap">Fig. 5.1 - $F_\beta$ as $\beta$ sweeps from $0.05$ to $3$ on the fraud-screen $P=0.800,\,R=0.667$; the curve is monotone decreasing because $P>R$, bottoming out toward $R$.</div>
 
 <div class="summary">
@@ -3434,7 +3580,7 @@ $$\boxed{F_\beta = (1+\beta^2)\,\frac{P \cdot R}{\beta^2 \cdot P + R}}$$
 <p>Notice the negative at $s=0.65$ sits <em>above</em> two of the three positives - this is exactly the overlap that keeps the ROC curve off the top-left corner: no single threshold catches all $3$ positives with zero false alarms.</p>
 </div>
 
-<img class="fig" src="img/fig_031.png" alt="ROC curve traced from the 7-point threshold sweep, with the diagonal chance line and shaded AUC">
+<img class="fig" src="img/fig_032.png" alt="ROC curve traced from the 7-point threshold sweep, with the diagonal chance line and shaded AUC">
 <div class="figcap">Fig. 5.2 - ROC curve from the sweep above; step shape is typical for a handful of discrete scores (a large dataset smooths it out). Diagonal = a classifier with zero discriminative power.</div>
 
 <div class="defn">
@@ -3692,7 +3838,7 @@ PrecisionRecallDisplay.from_predictions(y_te, s, plot_chance_level=True)   # sam
 One warning that follows from this: macro-$F1$ is <em>not</em> the $F1$ of macro-$P$ and macro-$R$. Here macro-$F1=0.750$, but the harmonic mean of macro-$P=0.737$ and macro-$R=0.767$ is $0.752$ - close, but not equal, and the gap widens as the per-class scores spread out. Average the $F1$s, do not $F1$ the averages.</p>
 </div>
 
-<img class="fig" src="img/fig_032.png" alt="Bar chart of per-class F1 with macro, weighted, and micro F1 reference lines">
+<img class="fig" src="img/fig_033.png" alt="Bar chart of per-class F1 with macro, weighted, and micro F1 reference lines">
 <div class="figcap">Fig. 5.3 - Per-class $F1$ for $A,B,C$ against the three averages. Macro sits below weighted and micro because it gives the poorly-served, small class $C$ equal say.</div>
 
 <div class="summary">
@@ -3722,7 +3868,7 @@ f1_score(y_true, y_pred, average="micro")      # pools TP/FP/FN globally first -
 
 <h3 id="s05-5">5.5 &nbsp; Choosing a metric</h3>
 <p>Putting the last three sections together into one decision path - start from the top and answer each question about your problem:</p>
-<img class="fig" src="img/fig_033.png" alt="Decision flowchart for choosing an evaluation metric">
+<img class="fig" src="img/fig_034.png" alt="Decision flowchart for choosing an evaluation metric">
 <div class="figcap">Fig. 5.4 - <code>metric_choice</code>: start at class balance and error cost, branch to $F_\beta$ direction, ROC vs. PR, and multi-class averaging.</div>
 
 <div class="note">
@@ -3788,7 +3934,7 @@ f1_score(y_true, y_pred, average="micro")      # pools TP/FP/FN globally first -
 </ul>
 </div>
 
-<img class="fig" src="img/fig_034.png" alt="Data splits into training, validation, and test sets with arrows showing each set's role">
+<img class="fig" src="img/fig_035.png" alt="Data splits into training, validation, and test sets with arrows showing each set's role">
 <div class="figcap">Fig. 6.1 - Data resolves into three roles: fit params, tune hyperparams, score the final model.</div>
 
 <div class="warn">
@@ -3840,7 +3986,7 @@ f1_score(y_true, y_pred, average="micro")      # pools TP/FP/FN globally first -
 </table>
 </div>
 
-<img class="fig" src="img/fig_035.png" alt="Left: 5x5 grid showing which fold is held out each CV round. Right: average validation MSE against lambda with error bars, best lambda starred">
+<img class="fig" src="img/fig_036.png" alt="Left: 5x5 grid showing which fold is held out each CV round. Right: average validation MSE against lambda with error bars, best lambda starred">
 <div class="figcap">Fig. 6.2 - Left: the 5-fold assignment (orange = validation fold each round). Right: CV score per $\lambda$; the star marks the selected setting. <!-- prov: s06_kfold_cv.json:best_lambda --></div>
 
 <div class="summary"><b>Interpretation.</b> $\lambda=0$ (no regularisation) and $\lambda=10$ (heavy regularisation) both validate worse than the middle of the range: too little regularisation overfits the noise in each training fold; too much regularisation underfits the true quadratic curvature. <!-- prov: s06_kfold_cv.json:best_lambda --> $\lambda^\star=0.1$ wins with avg. validation MSE $0.0598$, and we refit on all 20 points at that $\lambda$ to get the deployed model $\mathbf{w}_{\text{final}}$ - this refit-on-everything-at-the-end step is often skipped by beginners, who ship whichever fold's model happened to look best.</div>
@@ -3935,7 +4081,7 @@ $$\boxed{\;E_{\text{out}} = \mathbb{E}_\mathbf{x}[\text{Variance}(\mathbf{x})] +
 </div>
 </div>
 
-<img class="fig" src="img/fig_036.png" alt="Left panel: many constant-model fits cluster near zero, far from the sine target; average is a flat near-zero line. Right panel: line fits are highly scattered around two random points, but their average is close to the sine's secant behaviour">
+<img class="fig" src="img/fig_037.png" alt="Left panel: many constant-model fits cluster near zero, far from the sine target; average is a flat near-zero line. Right panel: line fits are highly scattered around two random points, but their average is close to the sine's secant behaviour">
 <div class="figcap">Fig. 6.3 - Thin blue lines are individual dataset fits (only 3 of 200,000 drawn); the orange line is $\bar g(x)$. <!-- prov: s06_bias_variance.json:gbar0_grid,gbar1_grid --></div>
 
 <div class="note"><p><b>Adjudication.</b> Our Monte-Carlo simulation (200,000 resamples) reproduces the textbook closed-form values to within simulation noise: $0.499\approx0.50$, $0.250\approx0.25$ for $\mathcal{H}_0$, and $0.208\approx0.21$, $1.678\approx1.69$ for $\mathcal{H}_1$. No discrepancy to adjudicate here - this table exists because v5 §15 stated the bias-variance decomposition but never once computed a number (its own inventory flags this as a defect); this is that missing worked example.</p></div>
@@ -3945,7 +4091,7 @@ $$\boxed{\;E_{\text{out}} = \mathbb{E}_\mathbf{x}[\text{Variance}(\mathbf{x})] +
 <h4>Bias-variance vs. hypothesis-set complexity</h4>
 <p>Repeating the same Monte-Carlo recipe (now $N=6$ points/dataset, additive noise $\sigma=0.25$) across polynomial degrees $0,1,2,3,4,5,7,9$ (degrees $6$ and $8$ are skipped - they add cost without changing the shape) traces out the classic U-curve with real numbers instead of a cartoon:</p>
 
-<img class="fig" src="img/fig_037.png" alt="Bias squared decreasing, variance increasing, and total E_out forming a U-shape as polynomial degree increases from 0 to 9">
+<img class="fig" src="img/fig_038.png" alt="Bias squared decreasing, variance increasing, and total E_out forming a U-shape as polynomial degree increases from 0 to 9">
 <div class="figcap">Fig. 6.4 - bias$^2$, variance, and $E_{\text{out}}$ (bias$^2$+variance+noise floor $\sigma^2$) vs. polynomial degree, Monte-Carlo over 20,000 datasets of size $N=6$. <!-- prov: s06_complexity_curve.json:results --></div>
 
 <div class="summary"><b>Interpretation.</b> Bias$^2$ falls sharply (degree 0 to degree 3: $0.50\to0.01$) as the hypothesis set becomes rich enough to represent $\sin(\pi x)$; variance rises from $0.09$ at degree 0 to $1.24$ at degree 9 and eventually dominates. $E_{\text{out}}$ is minimised at degree 1 here ($0.437$) - NOT at the degree that minimises bias, and NOT at degree 0. Degree 2 is the one visible anomaly: <em>both</em> bias$^2$ (up from $0.20$ to $0.36$) and variance (up to $0.96$, above degree 3's $0.80$) spike there, before collapsing at degree 3. This is a genuine finite-$N$ artifact rather than a bug: with only $6$ points per dataset, the occasional draw whose $x$-values nearly coincide makes the fitted quadratic coefficient enormous, and those heavy-tailed draws inflate the Monte-Carlo estimate of $\bar g(x)$ as well as the spread around it. So neither "bias decreases monotonically with capacity" nor "variance increases monotonically with capacity" is a guarantee at small $N$ - both are asymptotic statements, and this curve is honest about that rather than smoothed.</div>
@@ -4036,7 +4182,7 @@ $$\boxed{\;w_j^\star = \text{sign}(a_j)\cdot\max\!\left(|a_j| - \tfrac{\lambda}{
 <p>At $\lambda=1$, feature 3 ($|a_3|=0.3<\lambda/2=0.5$) is already zeroed - lasso has performed feature selection. Ridge, on this same $a$, would shrink $w_3$ toward 0 but never land on it exactly.</p>
 </div>
 
-<img class="fig" src="img/fig_038.png" alt="Ridge coefficient paths curve smoothly to zero as lambda grows; lasso coefficient paths hit exactly zero one at a time and stay there">
+<img class="fig" src="img/fig_039.png" alt="Ridge coefficient paths curve smoothly to zero as lambda grows; lasso coefficient paths hit exactly zero one at a time and stay there">
 <div class="figcap">Fig. 6.5 - Coefficient paths (8 degree-1..8 polynomial features on a noisy sine sample) as $\lambda$ grows. Ridge (left) shrinks every curve smoothly; Lasso (right) drives coefficients to exactly 0 and holds them there once $\lambda$ is large enough - broadly weakest-first, though with correlated polynomial features a coefficient can leave zero again over a small range of $\lambda$ (visible in the purple and pink paths near $\lambda\approx1$) as the penalty reshuffles which correlated feature carries the signal. <!-- prov: s06_regularization.json:partB --></div>
 
 <div class="summary"><b>Interpretation.</b> Use ridge when you believe most features matter a little; use lasso when you believe only a few features matter and want the model to tell you which; use elastic net (mix of both penalties) when features are correlated and lasso's "pick one, zero the rest" behaviour is too aggressive (lasso is known to arbitrarily pick one of several correlated features and zero the others, which is unstable under resampling). That last case is common enough - and the fix specific enough - to get its own treatment with real numbers next.</div>
@@ -4099,7 +4245,7 @@ $$\phi(w_j) = (w_j-a_j)^2 + \lambda\alpha|w_j| + \lambda(1-\alpha)w_j^2 .$$
 <h4>Computed comparison on a correlated design</h4>
 <p>To see all three penalties on the same data, we build $n=60$ training points with $p=8$ standardised features in three blocks<!-- prov: s06_elasticnet.json:partB -->: a <b>correlated trio</b> $x_1,x_2,x_3$ generated from one shared latent factor (mean pairwise correlation $0.978$), a <b>correlated pair</b> $x_4,x_5$ from a second factor (correlation $0.982$), and three <b>pure-noise</b> features $x_6,x_7,x_8$. The truth is $\beta=(2,2,2,\;1.5,1.5,\;0,0,0)$ with Gaussian noise $\sigma=1$, and a held-out test set of $2000$ points scores every fit. Paths use scikit-learn's convention (so $\lambda$ here is <code>alpha</code>, and $\alpha=$<code>l1_ratio</code>$=0.5$ for the elastic net).</p>
 
-<img class="fig" src="img/fig_039.png" alt="Three panels of coefficient paths against lambda on a log axis: ridge shrinks all eight coefficients smoothly including the three noise features; lasso keeps the three correlated features far apart and drives x1 to zero early; elastic net keeps the correlated trio tightly bunched together while zeroing the noise features">
+<img class="fig" src="img/fig_040.png" alt="Three panels of coefficient paths against lambda on a log axis: ridge shrinks all eight coefficients smoothly including the three noise features; lasso keeps the three correlated features far apart and drives x1 to zero early; elastic net keeps the correlated trio tightly bunched together while zeroing the noise features">
 <div class="figcap">Fig. 6.6 - Coefficient paths for ridge, lasso and elastic net ($\alpha=0.5$) on the same correlated design, $n=60$, $p=8$. Solid = correlated trio (true $\beta=2$), dashed = correlated pair (true $\beta=1.5$), dotted grey = noise (true $\beta=0$). The green dash-dot line marks the $\lambda=1$ slice tabulated below. <!-- prov: s06_elasticnet.json:partB --></div>
 
 <div class="scrollx">
@@ -4184,7 +4330,7 @@ alphas, coefs, _ = lasso_path(X_scaled, y, l1_ratio=1.0)
 
 <p>Worked example: a degree-10 polynomial fit by full-batch gradient descent ($N_{\text{train}}=12$, $N_{\text{val}}=12$, learning rate $\eta=0.08$) on a noisy $\sin(\pi x)$ sample, tracked for 1500 epochs:<!-- prov: s06_early_stopping.json --></p>
 
-<img class="fig" src="img/fig_040.png" alt="Train MSE decreases monotonically over 1500 epochs while validation MSE decreases then rises again, forming a U shape with minimum near epoch 217">
+<img class="fig" src="img/fig_041.png" alt="Train MSE decreases monotonically over 1500 epochs while validation MSE decreases then rises again, forming a U shape with minimum near epoch 217">
 <div class="figcap">Fig. 6.7 - Train MSE falls monotonically to $0.014$; validation MSE bottoms at epoch 217 ($0.088$) then climbs back to $0.158$ by epoch 1500. <!-- prov: s06_early_stopping.json:best_epoch,best_val_mse,final_train_mse,final_val_mse --></div>
 
 <div class="summary"><b>Interpretation.</b> Early in training, the small-weight-norm regime the optimiser starts from behaves like a low-degree (high-bias, low-variance) model; as epochs accumulate and weights grow, the <em>effective</em> capacity of the model rises even though the polynomial degree (10) never changes. Stopping at epoch 217 - well before the 1500-epoch training-error minimum - is functionally a regularisation choice: it caps how large $\|\mathbf{w}\|$ is allowed to grow, which is the same lever ridge regression pulls explicitly. This is why early stopping is sometimes called "regularisation by number of iterations."</div>
@@ -4194,7 +4340,7 @@ alphas, coefs, _ = lasso_path(X_scaled, y, l1_ratio=1.0)
 <h3 id="s06-7">6.7 &nbsp; Choosing a Regularisation Strategy</h3>
 <p>Putting §6.4&ndash;§6.6 together into one decision path: whether training is iterative determines if early stopping is even available; if you add an explicit penalty, whether you want automatic feature selection determines lasso vs. ridge vs. a blend.</p>
 
-<img class="fig" src="img/fig_041.png" alt="Decision flowchart: overfitting model, branches on whether training is iterative to early stopping or explicit penalty, then branches on need for sparsity to lasso, ridge, or elastic net">
+<img class="fig" src="img/fig_042.png" alt="Decision flowchart: overfitting model, branches on whether training is iterative to early stopping or explicit penalty, then branches on need for sparsity to lasso, ridge, or elastic net">
 <div class="figcap">Fig. 6.8 - Decision flowchart for choosing a regularisation strategy once a model is confirmed to be overfitting ($E_{\text{in}}$ low, $E_{\text{val}}$ high).</div>
 
 <h4>Reading the last branch: ridge vs. lasso vs. elastic net</h4>
@@ -4324,7 +4470,7 @@ $$\epsilon = \sqrt{\frac{1}{2N}\ln\frac{2M}{\delta}}.$$
 <tr><td class="l">union bound: $1000 \times 2^{-10}$</td><td class="num">$0.9766$<!-- prov: s07_pac_vc.json:coin_p_union_bound --></td></tr>
 </table>
 </div>
-<img class="fig" src="img/fig_042.png" alt="Probability that at least one of M coins shows all heads, exact curve versus union bound, as a function of M">
+<img class="fig" src="img/fig_043.png" alt="Probability that at least one of M coins shows all heads, exact curve versus union bound, as a function of M">
 <div class="figcap">Fig. 7.1 - A single coin looks flawless with probability $0.1\%$; among $1000$ coins some coin looks flawless $62\%$ of the time, and the union bound (dashed) tracks it loosely from above.</div>
 <div class="note">
 <p>One fixed hypothesis with $E_{\text{in}}=0$ proves almost nothing - with enough candidates tried, <em>someone</em> gets lucky. This is exactly why cross-validation and held-out test sets (<a href="#s06">§6</a>) matter: they prevent the "many coins" effect from contaminating the reported number.</p>
@@ -4354,7 +4500,7 @@ $$\epsilon = \sqrt{\frac{1}{2N}\ln\frac{2M}{\delta}}.$$
 <p><b>2D perceptron, $N=4$, square (the XOR case).</b> Four points at the corners of a square, labeled on the diagonals ($+,-,+,-$ going around - the classic XOR pattern). No straight line separates the two diagonal corners from the other two:</p>
 <p style="text-align:center">$m_{\mathcal{H}}(4) = 14$<!-- prov: s07_pac_vc.json:perceptron2d_N4_square_mH --> $< 16$<!-- prov: s07_pac_vc.json:perceptron2d_N4_square_total --> - <b>not shattered</b>: exactly the two "diagonal" labelings $(+,-,+,-)$ and $(-,+,-,+)$ are unreachable.<!-- prov: s07_pac_vc.json:perceptron2d_N4_square_missing_labelings --></p>
 </div>
-<img class="fig" src="img/fig_043.png" alt="Left: three points in general position with three example separating lines, all eight labelings realisable. Right: four points at the corners of a square with a diagonal XOR labeling that no line can separate.">
+<img class="fig" src="img/fig_044.png" alt="Left: three points in general position with three example separating lines, all eight labelings realisable. Right: four points at the corners of a square with a diagonal XOR labeling that no line can separate.">
 <div class="figcap">Fig. 7.2 - The 2D perceptron shatters every 3-point set in general position but no 4-point configuration: this is what "break point $k=4$" looks like geometrically.</div>
 <div class="note">
 <p>v5's growth-function discussion for the 2D perceptron never actually drew the shatter/no-shatter picture - its own defect list calls this "the single most useful diagram in Part II," present only as prose. Fig. 7.2 supplies it directly, plus the collinear counter-example, which shows a subtlety v5 never mentioned: growth functions are a <em>max over configurations</em>, so a badly chosen point set can under-shatter even when $N$ is below the true break point.</p>
@@ -4371,7 +4517,7 @@ $$\epsilon = \sqrt{\frac{1}{2N}\ln\frac{2M}{\delta}}.$$
 </table>
 </div>
 <p>Every row above is exhaustively recomputed and matches the closed-form formula exactly - brute-force enumeration on rays/intervals, exact LP-separability search over all $2^N$ labelings of $N$ points in convex position for the perceptron.<!-- prov: s07_pac_vc.json:growth_perceptron2d_matches_closed_form --> Note the perceptron's <em>exact</em> growth function $2\sum_{i=0}^{2}\binom{N-1}{i}$ sits strictly below its Sauer bound $\sum_{i=0}^{3}\binom{N}{i}$ from $N=4$ onward ($14$ vs $15$) - Sauer is an upper bound, not the count itself.</p>
-<img class="fig" src="img/fig_044.png" alt="Growth functions for positive rays, positive intervals, and the 2D perceptron plotted against 2^N on a log scale, showing polynomial classes falling further behind the exponential as N grows">
+<img class="fig" src="img/fig_045.png" alt="Growth functions for positive rays, positive intervals, and the 2D perceptron plotted against 2^N on a log scale, showing polynomial classes falling further behind the exponential as N grows">
 <div class="figcap">Fig. 7.3 - Once a class has a break point, its growth function peels away from $2^N$ and grows only polynomially - the gap widens with $N$.</div>
 
 <div class="thm">
@@ -4412,7 +4558,7 @@ $$m_{\mathcal{H}}(N) \;\le\; \sum_{i=0}^{k-1}\binom{N}{i} \;\le\; O(N^{k-1}).$$
 <p>Now add a fifth point at the centre. Try to label the four outer points $+1$ and the centre $-1$: the minimal bounding box of the four $+1$ points is the diamond's own bounding square, and that square necessarily contains the centre - so no rectangle can include all four outer points while excluding the middle one. This labeling is unreachable:</p>
 <p style="text-align:center">achievable? <b>no</b><!-- prov: s07_pac_vc.json:rect2d_N5_fail_case_achievable --> &nbsp;(only $21$ of $32$<!-- prov: s07_pac_vc.json:rect2d_N5_diamond_plus_centroid_mH --> labelings are realisable on this 5-point set) - consistent with $d_{VC}=4$.</p>
 </div>
-<img class="fig" src="img/fig_045.png" alt="Left: four points at a diamond configuration all enclosed by an axis-aligned rectangle, all sixteen labelings achievable. Right: a fifth centre point where labeling the outer points positive and the centre negative is geometrically impossible for any axis-aligned rectangle." >
+<img class="fig" src="img/fig_046.png" alt="Left: four points at a diamond configuration all enclosed by an axis-aligned rectangle, all sixteen labelings achievable. Right: a fifth centre point where labeling the outer points positive and the centre negative is geometrically impossible for any axis-aligned rectangle." >
 <div class="figcap">Fig. 7.4 - Axis-aligned rectangles shatter 4 points but not this 5-point configuration, matching the parameter count $d_{VC}=4$.</div>
 <div class="note">
 <p>This example is <em>not</em> a full proof that $d_{VC}=4$ for axis-aligned rectangles in general (that requires showing <em>no</em> 5-point configuration can be shattered, not just this one) - it's the standard textbook illustration, included here because v5 had no shatter example beyond the perceptron. The perceptron's $d_{VC}=d+1$ gets the full two-part proof in §7.7, which <em>is</em> a complete argument.</p>
@@ -4729,7 +4875,7 @@ inequality, so unlike the Minkowski family it cannot be used by the tree-based i
 of §8.6 without modification. It is also undefined at the origin ($\mathbf{0}$ has no
 direction), which the Minkowski distances handle fine.</div>
 
-<img class="fig" src="img/fig_046.png" alt="Minkowski unit-distance contours for p=1, 2, 3, and p to infinity">
+<img class="fig" src="img/fig_047.png" alt="Minkowski unit-distance contours for p=1, 2, 3, and p to infinity">
 <div class="figcap">Fig. 8.1 - the set of points at Minkowski-distance exactly 1 from the
 origin, for $p=1$ (diamond), $p=2$ (circle), $p=3$, and $p\to\infty$ (square). Smaller $p$
 concentrates the "budget" along the axes; larger $p$ spreads it more evenly, converging to the
@@ -4774,7 +4920,7 @@ point: a new student at $\mathbf{x}_q = (3, 3)$.</p>
 </table>
 </div>
 
-<img class="fig" src="img/fig_047.png" alt="Scatter plot of the toy dataset with the query point and its 3 nearest neighbours highlighted">
+<img class="fig" src="img/fig_048.png" alt="Scatter plot of the toy dataset with the query point and its 3 nearest neighbours highlighted">
 <div class="figcap">Fig. 8.2 - the toy dataset, query point (star), and its $k{=}3$
 Euclidean nearest neighbours (ringed: H, D, E).</div>
 
@@ -4836,14 +4982,14 @@ regardless of $\mathbf{x}_q$). This is the same bias&ndash;variance trade-off in
 generalisation, just turned by a single knob instead of a
 regularisation strength.</p>
 
-<img class="fig" src="img/fig_048.png" alt="Decision boundaries for k=1, 15, 51 on a synthetic 2D two-class dataset with injected label noise">
+<img class="fig" src="img/fig_049.png" alt="Decision boundaries for k=1, 15, 51 on a synthetic 2D two-class dataset with injected label noise">
 <div class="figcap">Fig. 8.3 - k-NN decision boundary on a synthetic overlapping
 two-Gaussian dataset (80 points, 6 injected label-noise points ringed in black) for $k=1$,
 $15$, $51$. $k{=}1$ carves a pocket around every noisy point (memorising it exactly);
 $k{=}51$ produces one smooth, nearly linear boundary. Leave-one-out (LOO) error is annotated per
 panel.</div>
 
-<img class="fig" src="img/fig_049.png" alt="Leave-one-out error versus k, showing a U-shaped curve">
+<img class="fig" src="img/fig_050.png" alt="Leave-one-out error versus k, showing a U-shaped curve">
 <div class="figcap">Fig. 8.4 - leave-one-out error against $k$ (odd values, same dataset as
 Fig. 8.3). Error falls from $k{=}1$ as noise gets averaged out, plateaus, and rises sharply once
 $k$ approaches $n$ and the classifier degenerates to always predicting the majority class.
@@ -4999,7 +5145,7 @@ $$\boxed{\;P(A \mid B) \;=\; \frac{P(B \mid A)\, P(A)}{P(B)}\;}$$
 <tr><td>$P(B)$</td><td>evidence</td><td>normaliser; identical across every candidate $A$, so it never affects an $\arg\max$</td></tr>
 </table>
 </div>
-<img class="fig" src="img/fig_050.png" alt="Bayes theorem with posterior, likelihood, prior and evidence terms labelled">
+<img class="fig" src="img/fig_051.png" alt="Bayes theorem with posterior, likelihood, prior and evidence terms labelled">
 <div class="figcap">Fig. 9.1 - Anatomy of Bayes&rsquo; theorem, redrawn from the handwritten annotated formula. In the Naive Bayes reading below, $A \to$ class, $B \to$ features.</div>
 <p>For classification the roles specialise: $A$ becomes a class label $C_k$, $B$ becomes a feature vector, and since the denominator $P(B)$ is the same for every candidate class, ranking classes by $P(C_k\mid B)$ is exactly ranking them by $P(B\mid C_k)\,P(C_k)$ - the normaliser can be dropped from the classification rule entirely.</p>
 
@@ -5023,7 +5169,7 @@ $$\frac{d}{d\theta}\Big[7\ln\theta + 8\ln(1-\theta)\Big] = 0 \;\;\Longrightarrow
 <p><em>the MLE derivation again, run on the pooled counts $7$ and $8$.</em></p>
 $$\boxed{\;\hat\theta_{MAP} \;=\; \frac{n_H + \alpha_H}{n_H+\alpha_H+n_T+\alpha_T}\;}$$
 <p>- relative frequency over <em>real plus imaginary</em> (&ldquo;pseudo&rdquo;) counts. The estimate lands between the prior&rsquo;s mode ($\alpha_H/(\alpha_H+\alpha_T)=0.4$) and the MLE ($0.6$), pulled toward the prior because it carries more tosses ($10$ vs. $5$). As real data accumulates, $n_H,n_T$ swamp $\alpha_H,\alpha_T$ and MAP converges to MLE; with a uniform prior ($\alpha_H=\alpha_T=0$) the two coincide from the start.</p>
-<img class="fig" src="img/fig_051.png" alt="Likelihood curve for HTHHT peaking at 0.6, and prior/likelihood/posterior curves for the MAP example peaking near 0.467">
+<img class="fig" src="img/fig_052.png" alt="Likelihood curve for HTHHT peaking at 0.6, and prior/likelihood/posterior curves for the MAP example peaking near 0.467">
 <div class="figcap">Fig. 9.2 - Left: the likelihood of HTHHT peaks at $\hat\theta_{MLE}=0.6$. Right: prior (remembering 4H,6T), normalised likelihood, and their product the posterior, whose mode $\hat\theta_{MAP}\approx0.467$ sits between the two, closer to the prior.</div>
 <div class="note">
 <p>The prior $\theta^{4}(1-\theta)^{6}$ is a $\text{Beta}(5,7)$ density in disguise - the <em>conjugate</em> prior of the Bernoulli, which is exactly why the posterior keeps the same functional shape with updated exponents. Adding one pseudo-count of each kind ($\alpha_H=\alpha_T=1$) is <em>Laplace smoothing</em>, which returns with a starring role in §9.5.</p>
@@ -5150,7 +5296,7 @@ $$\ln s_{pop} = \ln 0.6 + \ln\mathcal{N}(185;171.4,7.3^2) + \ln\mathcal{N}(85;70
 <!-- prov: s09_gaussian_nb.json:ln_s_pop -->
 $$P(\text{player}\mid\mathbf{x}) = \frac{e^{-9.8065}}{e^{-9.8065}+e^{-9.3686}} = 0.3922 \;\;\Longrightarrow\;\; \text{predict population}$$
 <!-- prov: s09_gaussian_nb.json:P_player -->
-<img class="fig" src="img/fig_052.png" alt="Gaussian Naive Bayes ellipses for player and population classes with a curved decision boundary and the query point">
+<img class="fig" src="img/fig_053.png" alt="Gaussian Naive Bayes ellipses for player and population classes with a curved decision boundary and the query point">
 <div class="figcap">Fig. 9.3 - Gaussian NB on the basketball data: per-class $1\sigma$/$2\sigma$ ellipses are axis-aligned - the independence assumption made visible - and unequal variances bend the boundary into a curve. The query $(185,85)$ falls just on the population side, matching the computed $P(\text{player})=0.39$.</div>
 <p><strong>Interpretation.</strong> The boundary is quadratic in general and collapses to a straight line only when the two classes share their variances - the Gaussian cousin of §9.4&rsquo;s log-linear result. This is a genuinely marginal case ($61\%$ vs. $39\%$), not a confident call; a classifier reporting only the hard label $\hat y=\text{population}$ would hide exactly the information a decision-maker needs.</p>
 
@@ -5245,14 +5391,14 @@ bnb.predict_proba([[1, 0, 1]])
 
 <p>Which variant to reach for is a question about the feature columns, not the label:</p>
 <p>Before reading the figure, ask of each feature column: does &ldquo;number of times a word appears&rdquo; belong on the left branch or the middle one?</p>
-<img class="fig" src="img/fig_053.png" alt="Decision flowchart choosing between Bernoulli, Multinomial and Gaussian Naive Bayes based on feature type">
+<img class="fig" src="img/fig_054.png" alt="Decision flowchart choosing between Bernoulli, Multinomial and Gaussian Naive Bayes based on feature type">
 <div class="figcap">Fig. 9.4 - Which Naive Bayes variant? Route on what a single feature column looks like, not on the label type; a dataset with mixed columns fits each column its own way and multiplies the resulting likelihoods together, since the independence assumption never cared how each factor was estimated.</div>
 
 <h3>9.7 &nbsp; Bayesian networks - the assumptions the domain actually deserves</h3>
 <p>Naive Bayes made one sweeping independence assumption and bought a huge parameter saving. Drawn as a graph, it is a single <em>fork</em>: the class $Y$ points at every feature, and nothing else touches anything. Real domains have richer wiring - a storm causes rain <em>and</em> lightning; lightning causes thunder; two different things can cause the same effect. A <em class="key">Bayesian network</em> captures exactly this with a directed acyclic graph (DAG): one node per variable, one edge per direct influence, and at each node a <em>conditional probability table</em> (CPT) giving $P(X_i\mid\text{Pa}(X_i))$ - the node&rsquo;s distribution given its parents. The graph&rsquo;s promise (the local Markov property: each node is independent of its non-descendants given its parents) collapses the chain rule to</p>
 $$\boxed{\;P(X_1,\ldots,X_n) \;=\; \prod_{i=1}^{n} P\big(X_i \mid \text{Pa}(X_i)\big)\;}$$
 <p>Running example, six binary variables: a storm ($S$) breeds lightning ($L$) and rain ($R$); lightning brings thunder ($T$); rain brings water-logging ($W$); and a power cut ($P$) can be caused by lightning <em>or</em> a flooded substation - so $P$ has two parents.</p>
-<img class="fig" src="img/fig_054.png" alt="The six-node storm Bayesian network with its conditional probability tables">
+<img class="fig" src="img/fig_055.png" alt="The six-node storm Bayesian network with its conditional probability tables">
 <div class="figcap">Fig. 9.5 - The storm network and its CPTs. Every arrow is a claimed direct influence; everything <em>absent</em> is a claimed independence. The power-cut node, with two parents, is the network&rsquo;s <em>collider</em> - the shape that misbehaves most interestingly below.</div>
 <p>For this graph the factorisation reads $P(S,L,R,T,W,P) = P(S)P(L\mid S)P(R\mid S)P(T\mid L)P(W\mid R)P(P\mid L,W)$. Any full assignment is now a six-term product read off the CPTs - the fully-stormy night, say:</p>
 $$P(S{=}1,L{=}1,R{=}1,T{=}1,W{=}1,P{=}1) = 0.2\times0.7\times0.8\times0.95\times0.6\times0.9 = 0.057456$$
@@ -5275,7 +5421,7 @@ $$P(S{=}1\mid T{=}1) = \frac{0.2\times0.671}{0.1874} = 0.716$$
 
 <h4>Three shapes of dependence and d-separation</h4>
 <p>Every path in every network decomposes into three local shapes, each with its own independence signature:</p>
-<img class="fig" src="img/fig_055.png" alt="Chain, fork and collider dependency diagrams with their conditional independence rules">
+<img class="fig" src="img/fig_056.png" alt="Chain, fork and collider dependency diagrams with their conditional independence rules">
 <div class="figcap">Fig. 9.6 - The three canonical structures. Shaded = conditioned on; the collider&rsquo;s rule runs opposite to the other two.</div>
 <p><strong>Chain</strong> $A\to B\to C$ (in the storm net: $S\to L\to T$). Factorisation $P(a,b,c)=P(a)P(b\mid a)P(c\mid b)$, so $P(a,c\mid b) = \frac{P(a)P(b\mid a)P(c\mid b)}{P(b)} = P(a\mid b)P(c\mid b)$ - product rule in reverse: $A\perp C\mid B$. <strong>Fork</strong> $A\leftarrow B\to C$ ($L\leftarrow S\to R$) gives the identical conclusion in one line: the common cause, once known, explains both effects, and their marginal correlation vanishes. <strong>Collider</strong> $A\to B\leftarrow C$ ($L\to P\leftarrow W$) inverts the rule - marginally the parents are independent ($P(a,c)=\sum_b P(a)P(c)P(b\mid a,c)=P(a)P(c)$, the CPT summing to $1$), but conditioning on $B$ <em>creates</em> dependence: lightning and water-logging are unrelated causes of a blackout, but once you know the power is out, learning it was flooding makes lightning less likely to be the culprit. The storm CPTs put numbers on this &ldquo;explaining away&rdquo;:</p>
 $$P(L{=}1\mid S{=}1,P{=}1,W{=}1) = \frac{0.7\times0.90}{0.7\times0.90+0.3\times0.30} = 0.875, \qquad P(L{=}1\mid S{=}1,P{=}1,W{=}0) = \frac{0.7\times0.60}{0.7\times0.60+0.3\times0.01} = 0.993$$
@@ -5331,7 +5477,7 @@ $$\mu_2 = \frac{3.4+0.8}{5} = 0.84, \quad \mu_3 = 0.848, \quad \mu_4 = 0.8496, \
 $$\mu^{\ast} = \frac{3.4+\mu^{\ast}}{5} \;\;\Longrightarrow\;\; 5\mu^{\ast} = 3.4+\mu^{\ast} \;\;\Longrightarrow\;\; \mu^{\ast} = \frac{3.4}{4} = 0.85$$
 <!-- prov: s09_em.json:main_fixed_point -->
 <p><em>the fixed point is exactly the mean of the observed data.</em></p>
-<img class="fig" src="img/fig_056.png" alt="EM iterate trajectory converging geometrically from 0.6 to the fixed point 0.85">
+<img class="fig" src="img/fig_057.png" alt="EM iterate trajectory converging geometrically from 0.6 to the fixed point 0.85">
 <div class="figcap">Fig. 9.7 - The $S_5$ iterates converging geometrically (ratio $1/5$ per step) from $\mu_0=0.6$ through the handwritten checkpoint $\mu_1=0.8$ to the fixed point $\mu^\ast=0.85$.</div>
 <div class="note">
 <p>For this one-parameter problem EM&rsquo;s answer equals simply <em>ignoring</em> the missing point - reassuring, not impressive. The algorithm earns its keep when hidden values and parameters are entangled: estimating a CPT whose parent column has blanks, or fitting a <em>Gaussian mixture</em> - which is exactly Gaussian Naive Bayes from §9.6 with the class labels deleted. There the E-step assigns each point <em>soft</em> cluster memberships and the M-step re-fits each Gaussian; harden the memberships to $0/1$ and the loop becomes k-means. <strong>The full GMM E/M-step derivation, soft-assignment numerics, and k-means-as-EM connection are worked in <a href="#s20">§20</a></strong> - this section only establishes the general two-step loop and its convergence guarantee.</p>
@@ -5387,7 +5533,7 @@ $$w_i = \ln\frac{\theta_{i1}(1-\theta_{i0})}{\theta_{i0}(1-\theta_{i1})} = \ln\f
 $$\text{Entropy: } \; E(S) = -\sum_{c=1}^{C} p_c \log_2 p_c \;\;[\text{bits}] \qquad\qquad \text{Gini: } \; G(S) = 1 - \sum_{c=1}^{C} p_c^2$$
 <p>Entropy is the expected number of yes/no questions to pin down a random member's class; Gini is the probability that two independent draws from the node disagree in class (equivalently, the error rate of guessing a random member's label by a random draw from the node's own distribution). Both are $0$ exactly when the node is pure and maximal when the classes are uniform ($\log_2 C$ for entropy, $1-\tfrac1C$ for Gini); both are concave. For two classes, $G = 2p(1-p)$ - a parabola with the same endpoints and peak location as entropy's curve, but no logarithm, so it is cheaper to evaluate and slightly gentler in the tails.</p>
 
-<img class="fig" src="img/fig_057.png" alt="Entropy, Gini and misclassification error as functions of class-1 proportion p, with three worked-example points marked">
+<img class="fig" src="img/fig_058.png" alt="Entropy, Gini and misclassification error as functions of class-1 proportion p, with three worked-example points marked">
 <div class="figcap"><span class="fnum">Fig. 10.1</span> - Entropy, $2\times$ Gini and $2\times$ misclassification error (rescaled to share a peak of 1) over $p\in(0,1)$, with the three node compositions from §10.3's worked split marked. <!-- prov: s10_classification_impurity.json:root_p_pos, E_A_v2 --></div>
 <div class="summary"><b>Interpretation.</b> All three curves rise from $0$ at the pure endpoints to a maximum at $p=0.5$ and are concave, so any of them will rank "purer" nodes above "mixed" ones the same way most of the time. They differ in curvature: entropy's logarithm punishes small minority classes harder than Gini's square does, which is exactly the mechanism behind the disagreement worked in §10.6.</div>
 
@@ -5494,7 +5640,7 @@ $$w_{\text{left}} = 3/5 = 0.6, \qquad w_{\text{right}} = 2/5 = 0.4$$<!-- prov: s
 $$\boxed{\;R_\alpha(T) \;=\; R(T) \;+\; \alpha\,|T|\;}$$
 <p>where $R(T)$ is the tree's training error (weighted impurity, summed leaf-by-leaf) and $|T|$ is its number of leaves - the "cost" of complexity, one $\alpha$ per leaf. At $\alpha = 0$ the fully-grown tree always wins (more leaves can only reduce $R(T)$, or leave it unchanged); as $\alpha \to \infty$ the single-node tree wins. CART's <b>weakest-link</b> algorithm finds the entire nested sequence of optimal subtrees $T_0 \supset T_1 \supset \cdots \supset T_n$ (root only) by repeatedly collapsing whichever internal node has the smallest "effective $\alpha$" - the value at which collapsing that node first stops hurting $R_\alpha$ - producing a finite increasing sequence of breakpoints $0=\alpha_0 < \alpha_1 < \cdots < \alpha_n$, one subtree per interval. hand p05 states the formula but works no numbers; the walkthrough below supplies them on a noisy $240$-point toy binary-classification set (moons shape, $65/35$ train/test split), grown to a full tree and then pruned along its real <code>scikit-learn</code> <code>cost_complexity_pruning_path</code>.</p>
 
-<img class="fig" src="img/fig_058.png" alt="Two panels: number of leaves vs alpha showing a step-down staircase, and train/test accuracy vs alpha showing test accuracy peaking at a small positive alpha before falling">
+<img class="fig" src="img/fig_059.png" alt="Two panels: number of leaves vs alpha showing a step-down staircase, and train/test accuracy vs alpha showing test accuracy peaking at a small positive alpha before falling">
 <div class="figcap"><span class="fnum">Fig. 10.2</span> - The cost-complexity pruning path. Left: tree size collapses from $22$ to $1$ leaf as $\alpha$ grows. Right: training accuracy falls monotonically, but test accuracy <em>peaks</em> at $\alpha \approx 0.0090$ before both collapse together at the single-node tree. <!-- prov: s10_ccp_alpha.json:ccp_alphas,n_leaves,train_acc,test_acc,best_alpha --></div>
 
 <div class="ex">
@@ -5563,7 +5709,7 @@ $$\text{MSE}(S) = \frac1{|S|}\sum_{i \in S}(y_i - \bar y_S)^2, \qquad \text{Gain
 <p><b>Arithmetic behind the winning split's Left MSE</b> (the source states $0.67$ without showing the sum): $\bar y_L = (3{+}4{+}5)/3 = 4.00$, deviations squared $(3{-}4)^2, (4{-}4)^2, (5{-}4)^2 = 1, 0, 1$, so $\text{MSE}(L) = 2/3 = 0.67$. <!-- prov: s10_regression_tree.json:left_4_5_values,left_4_5_mean,left_4_5_sq_devs,left_4_5_mse --> By the mirror-image arithmetic, $\text{MSE}(R) = 0.67$ too. <!-- prov: s10_regression_tree.json:right_4_5_mean,right_4_5_mse --></p>
 </div>
 
-<img class="fig" src="img/fig_059.png" alt="Scatter plot of Experience vs Salary with a vertical split line at Experience 4.5 and horizontal lines showing the two leaf mean predictions">
+<img class="fig" src="img/fig_060.png" alt="Scatter plot of Experience vs Salary with a vertical split line at Experience 4.5 and horizontal lines showing the two leaf mean predictions">
 <div class="figcap"><span class="fnum">Fig. 10.3</span> - The winning split at $\text{Exp}=4.5$: the left leaf predicts $4.00$ (average of A, B, C), the right leaf predicts $12.00$ (average of D, E, F) - both far closer to their group's true salaries than the root's flat $8.00$. <!-- prov: s10_regression_tree.json:leaf_pred_left,leaf_pred_right,y_bar_root --></div>
 
 <details class="code"><summary>Code - DecisionTreeRegressor and export_text (sklearn)</summary>
@@ -5711,7 +5857,7 @@ $$\underbrace{\pi^3}_{\text{all three right}}+\underbrace{3\pi^2(1-\pi)}_{\text{
 <!-- prov: s11_ensemble_theory.json:cond_11_070 -->
 <!-- prov: s11_ensemble_theory.json:cond_101_070 --></p></div>
 
-<img class="fig" src="img/fig_060.png" alt="Probability that a majority vote of B independent learners is correct, plotted against B for single-learner accuracies 0.70, 0.60, 0.55 and 0.45. The three curves above 0.5 rise towards 1; the 0.45 curve falls towards 0.">
+<img class="fig" src="img/fig_061.png" alt="Probability that a majority vote of B independent learners is correct, plotted against B for single-learner accuracies 0.70, 0.60, 0.55 and 0.45. The three curves above 0.5 rise towards 1; the 0.45 curve falls towards 0.">
 <div class="figcap">Fig. 11.1 - Condorcet's jury theorem, computed exactly from the binomial tail. Above chance the ensemble converges to certainty; below chance it converges to certain failure.</div>
 
 <div class="warn">
@@ -5776,7 +5922,7 @@ $$\lim_{N\to\infty}\Big(1-\tfrac1N\Big)^{N}=e^{-1}=0.3679 .$$
 </table>
 </div>
 
-<img class="fig" src="img/fig_061.png" alt="Left: the curve (1-1/N)^N against N, increasing towards the dashed asymptote 1/e = 0.3679, with marked values at N = 5, 10, 50, 100. Right: bar chart of how many of five bootstrap samples each of eight labelled training points is out-of-bag for, with a dashed line at the expected value 1.72 and point B having a bar of height zero.">
+<img class="fig" src="img/fig_062.png" alt="Left: the curve (1-1/N)^N against N, increasing towards the dashed asymptote 1/e = 0.3679, with marked values at N = 5, 10, 50, 100. Right: bar chart of how many of five bootstrap samples each of eight labelled training points is out-of-bag for, with a dashed line at the expected value 1.72 and point B having a bar of height zero.">
 <div class="figcap">Fig. 11.2 - Left: the out-of-bag share rises to <span>$1/e$</span> from below. Right: a five-bootstrap trace on <span>$N=8$</span> points - with <span>$B$</span> this small, one point (B) lands in every bag and gets no OOB prediction at all.</div>
 
 <div class="note">
@@ -5828,7 +5974,7 @@ oob.sum(axis=0)               # how many trees each row is OOB for ~ Binomial(B,
 <div class="defn">
 <b>Bagging.</b> For <span>$b=1,\dots,B$</span>: draw a bootstrap sample <span>$(\mathbf{X}^{*}_b,\mathbf{y}^{*}_b)$</span> of shape <span>$(M\times p)$</span>, <span>$(M\times 1)$</span>; fit a base learner <span>$T_b$</span> on it, unpruned. Predict by averaging (regression) or majority vote (classification). Nothing else changes - same algorithm, same hyperparameters, only the data differs.</div>
 
-<img class="fig" src="img/fig_062.png" alt="Schematic: one training set D of shape N by p fans out into B bootstrap samples of size M drawn with replacement; each feeds one tree that samples m of p features per split; all trees feed one aggregation box that averages for regression and majority-votes for classification. A note says each bootstrap leaves out about 36.8 percent of D, which becomes its out-of-bag set.">
+<img class="fig" src="img/fig_063.png" alt="Schematic: one training set D of shape N by p fans out into B bootstrap samples of size M drawn with replacement; each feeds one tree that samples m of p features per split; all trees feed one aggregation box that averages for regression and majority-votes for classification. A note says each bootstrap leaves out about 36.8 percent of D, which becomes its out-of-bag set.">
 <div class="figcap">Fig. 11.3 - The bagging / random-forest pipeline. Bagging is the special case <span>$m=p$</span>; a random forest is the same picture with <span>$m&lt;p$</span>.</div>
 
 <p><b>Shapes at each stage.</b> <span>$\mathbf{X}$</span> is <span>$(N\times p)$</span> &rarr; index vector <span>$\mathbf{i}_b$</span> is <span>$(M\times 1)$</span> with entries in <span>$\{1,\dots,N\}$</span> &rarr; <span>$\mathbf{X}^{*}_b=\mathbf{X}[\mathbf{i}_b,:]$</span> is <span>$(M\times p)$</span> &rarr; each tree maps one row <span>$(1\times p)$</span> to a scalar &rarr; stacking the <span>$B$</span> tree outputs for a test matrix <span>$(n_{\text{test}}\times p)$</span> gives a prediction matrix <span>$(B\times n_{\text{test}})$</span>, which we collapse along the tree axis to <span>$(1\times n_{\text{test}})$</span>.</p>
@@ -5852,7 +5998,7 @@ oob.sum(axis=0)               # how many trees each row is OOB for ~ Binomial(B,
 <!-- prov: s11_bagging_experiments.json:bv_bag_var -->
 <!-- prov: s11_bagging_experiments.json:bv_bag_eout -->
 
-<img class="fig" src="img/fig_063.png" alt="Left panel: the smooth target function with two jagged single-tree fits from two different training sets and one much smoother bagged fit. Right panel: the target with plus/minus one standard deviation bands over 400 replicate datasets, the single-tree band visibly wider than the bagged band.">
+<img class="fig" src="img/fig_064.png" alt="Left panel: the smooth target function with two jagged single-tree fits from two different training sets and one much smoother bagged fit. Right panel: the target with plus/minus one standard deviation bands over 400 replicate datasets, the single-tree band visibly wider than the bagged band.">
 <div class="figcap">Fig. 11.4 - Same learner, 400 replicate training sets. Averaging 50 bootstrap trees cuts the prediction variance by 51.6&#37; and leaves the (already negligible) bias essentially untouched; <span>$E_{\text{out}}$</span> falls 25.9&#37;.</div>
 <!-- prov: s11_bagging_experiments.json:bv_var_drop_pct -->
 <!-- prov: s11_bagging_experiments.json:bv_eout_drop_pct -->
@@ -5915,7 +6061,7 @@ for m in ["sqrt", "log2", 0.5, None]:              # None means m = p, i.e. bagg
 </ul>
 <p>§11.5 shows the ensemble variance is <span>$\sigma^2[\rho+(1-\rho)/B]$</span>, a product of the two - so there is an interior optimum, and where it sits depends on the data.</p>
 
-<img class="fig" src="img/fig_064.png" alt="Three panels against max_features m. Left: estimated pairwise tree correlation rises with m on both datasets. Middle: single-tree variance falls with m while the ensemble variance rises. Right: test MSE relative to its value at m equals p, showing a minimum at m equals 4 for the correlated design and a monotone decrease for Friedman-1.">
+<img class="fig" src="img/fig_065.png" alt="Three panels against max_features m. Left: estimated pairwise tree correlation rises with m on both datasets. Middle: single-tree variance falls with m while the ensemble variance rises. Right: test MSE relative to its value at m equals p, showing a minimum at m equals 4 for the correlated design and a monotone decrease for Friedman-1.">
 <div class="figcap">Fig. 11.5 - Measured on 25 replicate training sets, 50 trees each. Left: <span>$\hat\rho$</span> rises monotonically with <span>$m$</span>. Middle: <span>$\hat\sigma^2$</span> falls with <span>$m$</span> but the ensemble variance rises, because <span>$\rho$</span> wins. Right: the resulting test MSE.</div>
 
 <p><b>How <span>$\rho$</span> and <span>$\sigma^2$</span> were estimated.</b> Refit the forest on 25 independent training sets; pool all <span>$25\times 50$</span> individual trees and take <span>$\hat\sigma^2=\overline{\mathrm{Var}}[T_b(\mathbf{x})]$</span> across them at each test point; take <span>$\widehat{\mathrm{Var}}_{\text{ens}}$</span> as the variance of the 25 forest predictions; then invert the law of §11.5,</p>
@@ -5991,7 +6137,7 @@ The correct generic identity is <span>$\mathrm{Var}(\sum T_i)=\sum\mathrm{Var}(T
 </table>
 </div>
 
-<img class="fig" src="img/fig_065.png" alt="Left: ensemble variance divided by sigma squared plotted against number of trees B on a log axis, for rho values 0, 0.1, 0.25, 0.5 and 0.8; each curve flattens onto a dotted floor at its own rho. Right: the same ratio plotted against rho for B equal to 1, 5, 25, 100 and infinity; all lines meet at 1 when rho equals 1.">
+<img class="fig" src="img/fig_066.png" alt="Left: ensemble variance divided by sigma squared plotted against number of trees B on a log axis, for rho values 0, 0.1, 0.25, 0.5 and 0.8; each curve flattens onto a dotted floor at its own rho. Right: the same ratio plotted against rho for B equal to 1, 5, 25, 100 and infinity; all lines meet at 1 when rho equals 1.">
 <div class="figcap">Fig. 11.6 - The two readings of <span>$\sigma^{2}[\rho+(1-\rho)/B]$</span>. Adding trees only ever removes the <span>$(1-\rho)/B$</span> piece; <span>$\rho$</span> is a hard floor.</div>
 
 <p>The three limits the handwritten margin notes single out:</p>
@@ -6026,7 +6172,7 @@ $$|\mathcal{O}_i|\sim\mathrm{Binomial}(B,q),\qquad \mathbb{E}|\mathcal{O}_i|=Bq\
 The probability a row has <em>no</em> OOB tree at all is <span>$(1-q)^{B}=0.632^{B}$</span>: 10.1&#37; at <span>$B=5$</span>, 1.02&#37; at <span>$B=10$</span>, <span>$10^{-5}$</span> at <span>$B=25$</span>, negligible beyond.
 <!-- prov: s11_ensemble_theory.json:p_never_oob --></p>
 
-<img class="fig" src="img/fig_066.png" alt="OOB error and held-out test error plotted against the number of trees on a log axis, from 5 to 400 trees. Both fall and flatten; the shaded region below 25 trees is marked as unreliable. Beyond 100 trees the two curves sit within about two percentage points of each other.">
+<img class="fig" src="img/fig_067.png" alt="OOB error and held-out test error plotted against the number of trees on a log axis, from 5 to 400 trees. Both fall and flatten; the shaded region below 25 trees is marked as unreliable. Beyond 100 trees the two curves sit within about two percentage points of each other.">
 <div class="figcap">Fig. 11.7 - 600-row synthetic classification problem (20 features, 6 informative), 390 train / 210 test. OOB error is wildly pessimistic when <span>$B$</span> is small - at <span>$B=5$</span> it reads 23.3&#37; against a true 21.0&#37;, and each row is judged by only ~2 trees - but settles to 13.3&#37; against a test error of 15.2&#37;.</div>
 <!-- prov: s11_bagging_experiments.json:oob_err_B5 -->
 <!-- prov: s11_bagging_experiments.json:oob_err_B400 -->
@@ -6288,7 +6434,7 @@ $$\epsilon_t e^{\alpha_t}=(1-\epsilon_t)e^{-\alpha_t}\;\Longrightarrow\; e^{2\al
 
 <p>Below, the left panel plots $\alpha_t$ against $\epsilon_t$. The right panel plots the normaliser and the two update factors derived in §12.4–12.5.</p>
 
-<img class="fig" src="img/fig_067.png" alt="Left: alpha_t as a function of the weighted error, with the three sanity regimes annotated. Right: the normaliser Z_t and the weight-update multipliers 1/(2 eps) and 1/(2(1-eps)).">
+<img class="fig" src="img/fig_068.png" alt="Left: alpha_t as a function of the weighted error, with the three sanity regimes annotated. Right: the normaliser Z_t and the weight-update multipliers 1/(2 eps) and 1/(2(1-eps)).">
 <div class="figcap">Fig. 12.1 - Everything AdaBoost's constants do, as functions of one number $\epsilon_t$.</div>
 <!-- prov: s12_adaboost_classify.json:alpha_table -->
 
@@ -6385,7 +6531,7 @@ $$\epsilon_3=3(0.045455)+0.045455=0.181818,\qquad \alpha_3=0.752039,\qquad Z_3=0
 </div>
 <!-- prov: s12_adaboost_classify.json:rounds -->
 
-<img class="fig" src="img/fig_068.png" alt="Three panels, one per boosting round: the ten one-dimensional points on two rows by class, marker area proportional to the current weight, a vertical line at the stump threshold, and purple rings marking the points the stump misclassifies.">
+<img class="fig" src="img/fig_069.png" alt="Three panels, one per boosting round: the ten one-dimensional points on two rows by class, marker area proportional to the current weight, a vertical line at the stump threshold, and purple rings marking the points the stump misclassifies.">
 <div class="figcap">Fig. 12.2 - The three rounds. Marker area is the current weight $w_i^{(t)}$; purple rings are the points that round's stump gets wrong.</div>
 
 <div class="scrollx">
@@ -6399,7 +6545,7 @@ $$\epsilon_3=3(0.045455)+0.045455=0.181818,\qquad \alpha_3=0.752039,\qquad Z_3=0
 </div>
 <!-- prov: s12_adaboost_classify.json:rounds[*].w_before, rounds[*].w_after -->
 
-<img class="fig" src="img/fig_069.png" alt="Grouped bar chart of the sample weights for each of the ten points across the four weight vectors w1 to w4, with a dotted line at the uniform level 0.1.">
+<img class="fig" src="img/fig_070.png" alt="Grouped bar chart of the sample weights for each of the ten points across the four weight vectors w1 to w4, with a dotted line at the uniform level 0.1.">
 <div class="figcap">Fig. 12.3 - The same table as bars. Each round pushes weight onto that round's mistakes and pulls it off its successes.</div>
 
 <div class="ex">
@@ -6487,7 +6633,7 @@ $$\text{training error}\;\le\;\exp\!\left(-2\sum_{t=1}^{T}\gamma_t^2\right),$$
 <p>which decays <em>exponentially</em> in $T$ as long as every learner has a bounded edge $\gamma_t\ge\gamma&gt;0$. This is the theorem that made boosting famous: weak learnability implies strong learnability.</p>
 </div>
 
-<img class="fig" src="img/fig_070.png" alt="Line chart against the number of weak learners: the product bound and the mean exponential loss coincide and decay smoothly, while the 0-1 training error drops to zero at three learners and stays there.">
+<img class="fig" src="img/fig_071.png" alt="Line chart against the number of weak learners: the product bound and the mean exponential loss coincide and decay smoothly, while the 0-1 training error drops to zero at three learners and stays there.">
 <div class="figcap">Fig. 12.4 - On the worked dataset the bound and the mean exponential loss coincide exactly (they are the same quantity), and the 0/1 error is squeezed to zero by round 3.</div>
 
 <div class="summary">
@@ -6524,7 +6670,7 @@ $$\text{training error}\;\le\;\exp\!\left(-2\sum_{t=1}^{T}\gamma_t^2\right),$$
 <p>Recomputed: split 1 has weighted error $0.6$, split 2 has weighted error $0.3$ - matching the source's arithmetic exactly. The tree therefore <b>prefers split 2</b>, sacrificing three cheap points (A, D, E at $0.1$ each) to rescue the one expensive point C.</p>
 </div>
 
-<img class="fig" src="img/fig_071.png" alt="Grouped bar chart comparing the unweighted and weighted error of two candidate splits; split 1 wins on unweighted error while split 2 wins on weighted error.">
+<img class="fig" src="img/fig_072.png" alt="Grouped bar chart comparing the unweighted and weighted error of two candidate splits; split 1 wins on unweighted error while split 2 wins on weighted error.">
 <div class="figcap">Fig. 12.5 - hand p10 recomputed. The weighting reverses which split the tree prefers - that <em>is</em> the penalty route in one picture.</div>
 
 <div class="summary">
@@ -6536,7 +6682,7 @@ $$\text{training error}\;\le\;\exp\!\left(-2\sum_{t=1}^{T}\gamma_t^2\right),$$
 <p><b>Reading the source's last sentence.</b> As written it runs "Tree will prefer split 2. so that it can correctly classify the errored C the tree misclassifies three points". The intended reading is: <em>the tree prefers split 2 so that it can correctly classify the errored point C, even though in doing so it misclassifies three points.</em></p>
 </div>
 
-<img class="fig" src="img/fig_072.png" alt="Flow diagram: after a round finishes, two routes branch out - resampling with probability proportional to weights, and the penalty route passing weights into the split criterion - both leading to the rule that decision-tree base learners should use the penalty route.">
+<img class="fig" src="img/fig_073.png" alt="Flow diagram: after a round finishes, two routes branch out - resampling with probability proportional to weights, and the penalty route passing weights into the split criterion - both leading to the rule that decision-tree base learners should use the penalty route.">
 <div class="figcap">Fig. 12.6 - Choosing between the two routes.</div>
 
 <div class="summary">
@@ -6649,7 +6795,7 @@ $$w_i^{(t+1)}=\frac{w_i^{(t)}\,\beta_t^{\,1-L_i}}{Z_t},\qquad Z_t=\sum_{j=1}^{N}
 </div>
 <!-- prov: s12_adaboost_r2.json:rounds -->
 
-<img class="fig" src="img/fig_073.png" alt="Left panel: the V-shaped data with the four fitted regression stumps drawn as step functions, two splitting at 1.5 and two at 6.5. Right panel: the sample-weight vectors across rounds, peaking at the badly fitted end points and the valley.">
+<img class="fig" src="img/fig_074.png" alt="Left panel: the V-shaped data with the four fitted regression stumps drawn as step functions, two splitting at 1.5 and two at 6.5. Right panel: the sample-weight vectors across rounds, peaking at the badly fitted end points and the valley.">
 <div class="figcap">Fig. 12.7 - AdaBoost.R2 on the V-shaped target: the four weighted stumps (left) and how the sample weights drift (right).</div>
 
 <div class="summary">
@@ -6679,7 +6825,7 @@ $$\hat y(\mathbf{x})=g_{\pi(k^\star)}(\mathbf{x}),\qquad k^\star=\min\Big\{k:\ \
 <p>Total weight $W=2.370698$, half of it $1.185349$; the first crossing is at position 3, so $\hat y(7)=10.0000$ - the true value. For contrast, the weighted <em>mean</em> of the same four predictions is $7.3524$, an error of $2.65$. <!-- prov: s12_adaboost_r2.json:main_query.prediction, main_query.weighted_mean --></p>
 </div>
 
-<img class="fig" src="img/fig_074.png" alt="Bar-and-line chart: four bars are the learner weights for the sorted predictions, the line is their cumulative sum, and a dashed line marks half the total weight; the first crossing is circled at the third position.">
+<img class="fig" src="img/fig_075.png" alt="Bar-and-line chart: four bars are the learner weights for the sorted predictions, the line is their cumulative sum, and a dashed line marks half the total weight; the first crossing is circled at the third position.">
 <div class="figcap">Fig. 12.8 - The weighted median at $x=7$: sort by predicted value, walk the cumulative weight, stop at the halfway mark.</div>
 
 <div class="summary">
@@ -6862,7 +7008,7 @@ i.e. the pseudo-residual <em>is</em> the ordinary residual. This is the special 
 "residual boosting" is literally accurate; for every other loss the pseudo-residual is <em>not</em> the
 residual.</div>
 
-<img class="fig" src="img/fig_075.png" alt="Left: per-sample squared loss as a function of the prediction, with the F0, F1, F2 iterates marching downhill. Right: bar chart of the pseudo-residuals for the four training points after each round, shrinking.">
+<img class="fig" src="img/fig_076.png" alt="Left: per-sample squared loss as a function of the prediction, with the F0, F1, F2 iterates marching downhill. Right: bar chart of the pseudo-residuals for the four training points after each round, shrinking.">
 <div class="figcap">Fig. 13.1 - (a) For one training point ($x=1$, $y=30$) the per-sample loss is a parabola in the
 prediction $F(x)$; rounds 1 and 2 are two small downhill steps of size $\nu \times$ (leaf value).
 (b) All four pseudo-residuals shrink together.</div>
@@ -6937,7 +7083,7 @@ $$\text{SSE}(S) = \sum_{i \in S}\big(r_i - \bar r_S\big)^2,
 </tbody></table></div>
 <!-- prov: s13_gb_regression.json:rounds[0].candidates -->
 
-<img class="fig" src="img/fig_076.png" alt="Two bar charts of SSE gain for the three candidate thresholds, in boosting round 1 and round 2; x<=2.5 wins in both.">
+<img class="fig" src="img/fig_077.png" alt="Two bar charts of SSE gain for the three candidate thresholds, in boosting round 1 and round 2; x<=2.5 wins in both.">
 <div class="figcap">Fig. 13.2 - The split search the source skipped. $x \le 2.5$ maximises SSE gain in both rounds.</div>
 
 <p>So the source's "$x \le 2.5$" is confirmed, and its "SSE $=50$, SSE $=50$, Total SSE $=100$" are the two
@@ -6978,7 +7124,7 @@ rows sit in the same leaf. A dropped "4". <b>47.15 is correct.</b></li>
 </ul>
 Both are copying slips, not conceptual errors - the method on the page is right.</div>
 
-<img class="fig" src="img/fig_077.png" alt="Three panels showing the piecewise-constant model after F0, F1 and F2, with grey arrows from the model level up or down to each data point.">
+<img class="fig" src="img/fig_078.png" alt="Three panels showing the piecewise-constant model after F0, F1 and F2, with grey arrows from the model level up or down to each data point.">
 <div class="figcap">Fig. 13.3 - The ensemble as a step function after each round; the grey arrows are the
 residuals that the next tree will be trained on.</div>
 
@@ -7023,7 +7169,7 @@ def predict(Xnew):                               # F_M(x) = F_0 + nu * sum_m Tre
 source's notation. "Shrinks every tree's contribution" is exactly right -
 it trades trees for step size.</p>
 
-<img class="fig" src="img/fig_078.png" alt="Training MSE on a log scale versus boosting round for learning rates 0.05, 0.1, 0.3 and 1.0; smaller learning rates decay more slowly but along straight lines.">
+<img class="fig" src="img/fig_079.png" alt="Training MSE on a log scale versus boosting round for learning rates 0.05, 0.1, 0.3 and 1.0; smaller learning rates decay more slowly but along straight lines.">
 <div class="figcap">Fig. 13.4 - Same data, same stumps, four learning rates, 60 rounds.</div>
 
 <p>Rounds needed to bring the training MSE below 5 on this toy set:
@@ -7231,7 +7377,7 @@ $$\gamma_{2,\text{left}} = \frac{0.1029 + 0.1029 - 0.5080}{0.0923 + 0.0923 + 0.2
 training log-loss falls $0.5623 \to 0.4009 \to 0.2531 \to 0.1854$ over rounds $0,1,2,3$.
 <!-- prov: s13_gb_classification.json:logloss_traj --></p>
 
-<img class="fig" src="img/fig_079.png" alt="Three panels: log-odds per sample versus round, probabilities versus round with the 0.5 threshold, and mean log-loss versus round.">
+<img class="fig" src="img/fig_080.png" alt="Three panels: log-odds per sample versus round, probabilities versus round with the 0.5 threshold, and mean log-loss versus round.">
 <div class="figcap">Fig. 13.5 - Three rounds of gradient boosting for classification on the hand p13 data.
 Ages 25 and 32 share every leaf, so their curves coincide.</div>
 
@@ -7361,7 +7507,7 @@ and only keeps the split if $\text{Gain} &gt; \gamma$ (some texts fold the $\tfr
 $\tfrac12\text{Gain} - \gamma$; XGBoost's <code>gamma</code> is on whichever scale the library uses
 internally - the sign logic is identical).</div>
 
-<img class="fig" src="img/fig_080.png" alt="Left: the leaf objective as a parabola in w for three values of lambda, with the minimising w marked. Right: optimal weight and structure score as functions of lambda.">
+<img class="fig" src="img/fig_081.png" alt="Left: the leaf objective as a parabola in w for three values of lambda, with the minimising w marked. Right: optimal weight and structure score as functions of lambda.">
 <div class="figcap">Fig. 13.6 - (a) The per-leaf objective $G w + \tfrac12(H+\lambda)w^2$ for $G = 4$, $H = 3$:
 $\lambda$ raises the curvature, pulling the minimiser toward 0. (b) Both $w^{*}$ and the structure score
 decay like $1/(H+\lambda)$.</div>
@@ -7420,7 +7566,7 @@ Separately, the page's $F_1 = 1.085$ should be $-0.5 + 0.5\times 3.1667 = \mathb
 </tbody></table></div>
 <!-- prov: s13_xgboost.json:regression -->
 
-<img class="fig" src="img/fig_081.png" alt="Grouped bar chart of XGBoost gain for the three candidate dosage splits at lambda 0 and lambda 1, with a dashed gamma threshold at 60.">
+<img class="fig" src="img/fig_082.png" alt="Grouped bar chart of XGBoost gain for the three candidate dosage splits at lambda 0 and lambda 1, with a dashed gamma threshold at 60.">
 <div class="figcap">Fig. 13.7 - Split gains for the hand p13 XGBoost regression example, and the effect of
 $\lambda$ and of a $\gamma$ threshold.</div>
 
@@ -7482,7 +7628,7 @@ that maximizes gain. At inference, missing values follow that learned direction.
 gain <b>twice</b>: once with the missing-valued rows appended to $I_L$, once with them appended to $I_R$. The
 higher-gain assignment is stored in the node as its <em>default direction</em>.</p>
 
-<img class="fig" src="img/fig_082.png" alt="Schematic: a node with four observed rows and two missing rows; two trial branches, missing to left with gain 17.56 and missing to right with gain 9.56; left wins and becomes the default direction.">
+<img class="fig" src="img/fig_083.png" alt="Schematic: a node with four observed rows and two missing rows; two trial branches, missing to left with gain 17.56 and missing to right with gain 9.56; left wins and becomes the default direction.">
 <div class="figcap">Fig. 13.8 - Sparsity-aware split finding on a toy node ($\lambda = 1$).</div>
 
 <p>In the figure the two missing rows carry residuals $-2.5$ and $0.5$, which sum to $-2$ - the same sign as
@@ -7537,7 +7683,7 @@ destroy the additive structure.</div>
 </tbody></table></div>
 <p class="small"></p>
 
-<img class="fig" src="img/fig_083.png" alt="Three schematic trees: XGBoost level-wise balanced, LightGBM leaf-wise deep on one side, CatBoost symmetric with identical conditions per level.">
+<img class="fig" src="img/fig_084.png" alt="Three schematic trees: XGBoost level-wise balanced, LightGBM leaf-wise deep on one side, CatBoost symmetric with identical conditions per level.">
 <div class="figcap">Fig. 13.9 - The three growth policies, redrawn from the sketches on hand p16.</div>
 
 <div class="summary"><b>Interpretation.</b> The growth policy is the single biggest behavioural difference.
@@ -7607,7 +7753,7 @@ cb.get_feature_importance(valid_pool, type="LossFunctionChange")   # held-out-is
 <p class="wnote">Interview line: all three are the same Newton-boosting mathematics of §13.7 with different <em>growth policies</em> and different <em>categorical handling</em> - that is the only thing worth memorising. Say: no scaling for any of them (§13.13's rule), never one-hot a 50 000-level id (CatBoost's ordered target statistics or hashing instead), and cap <code>num_leaves</code>/<code>min_data_in_leaf</code> for leaf-wise growth because it reaches a lower training loss per tree and therefore overfits sooner. Pitfall: LightGBM's <code>predict</code> defaults to <em>all</em> rounds, silently discarding your early stopping unless you pass <code>num_iteration</code>.</p>
 </details>
 
-<img class="fig" src="img/fig_084.png" alt="Decision flowchart: start with tabular data, then questions about dataset size, categorical cardinality, row count, missing values and noise, leading to sklearn GradientBoosting, CatBoost, LightGBM, XGBoost or Random Forest.">
+<img class="fig" src="img/fig_085.png" alt="Decision flowchart: start with tabular data, then questions about dataset size, categorical cardinality, row count, missing values and noise, leading to sklearn GradientBoosting, CatBoost, LightGBM, XGBoost or Random Forest.">
 <div class="figcap">Fig. 13.10 - Which boosting library? The p16 comparison turned into a decision path.</div>
 
 <div class="summary"><b>Interpretation.</b> The flowchart's final box is the part people skip: whichever
@@ -8409,7 +8555,7 @@ minority "region" is still only 38 distinct points</td></tr>
 </div>
 <!-- prov: s14_smote.json:metrics[*].n_train -->
 
-<img class="fig" src="img/fig_085.png" alt="Four scatter panels: original imbalanced data, random oversampling shown with marker area proportional to duplication multiplicity, random undersampling, and SMOTE synthetic points.">
+<img class="fig" src="img/fig_086.png" alt="Four scatter panels: original imbalanced data, random oversampling shown with marker area proportional to duplication multiplicity, random undersampling, and SMOTE synthetic points.">
 <div class="figcap">Fig. 14.1 - The same 780-row training split under four regimes. In (b) each
 minority marker's <em>area</em> is its multiplicity after random oversampling (12 to 31 copies)
 - the point cloud has not moved, only got heavier. In (c) 704 majority rows are gone. Only
@@ -8496,7 +8642,7 @@ The point sits a quarter of the way from $p_1$ to $p_2$ - closer to $p_1$, becau
 $\lambda$ measures distance travelled <em>towards</em> the neighbour.</p>
 </div>
 
-<img class="fig" src="img/fig_086.png" alt="Left: five minority points with the two nearest neighbours of p1 dashed and one synthetic point on the p1-p2 segment. Right: 400 synthetic points from the real dataset lying on segments between real minority points.">
+<img class="fig" src="img/fig_087.png" alt="Left: five minority points with the two nearest neighbours of p1 dashed and one synthetic point on the p1-p2 segment. Right: 400 synthetic points from the real dataset lying on segments between real minority points.">
 <div class="figcap">Fig. 14.2 - (a) the traced draw; the dashed lines are the $k=2$ minority
 neighbours of $p_1$ and the orange segment is the sampling line. (b) 400 real synthetic
 points from our dataset: the cloud is a union of segments, a one-dimensional skeleton
@@ -8674,7 +8820,7 @@ then the cleaner erases whichever rows now sit in contested territory. The notes
 as separate "variants"; mechanically they are the same
 oversampler plus a filter.</p>
 
-<img class="fig" src="img/fig_087.png" alt="Four panels: Borderline-SMOTE triage of minority points into safe, danger and noise; synthetic points from Borderline-SMOTE; ADASYN's synthetic points clustered on noisy seeds; and Tomek-link and ENN removals after SMOTE.">
+<img class="fig" src="img/fig_088.png" alt="Four panels: Borderline-SMOTE triage of minority points into safe, danger and noise; synthetic points from Borderline-SMOTE; ADASYN's synthetic points clustered on noisy seeds; and Tomek-link and ENN removals after SMOTE.">
 <div class="figcap">Fig. 14.3 - (a) the SAFE/DANGER/NOISE triage; the 11 "noise" crosses lie on
 the majority ribbon. (b) Borderline-SMOTE fires only from the 2 DANGER points - note how
 little of the space it covers. (c) ADASYN pours 616 of its 695 points onto exactly the
@@ -8764,7 +8910,7 @@ same number of positives as the SMOTE model does.</p>
 </div>
 <!-- prov: s14_smote.json:metrics -->
 
-<img class="fig" src="img/fig_088.png" alt="Left: horizontal bars of recall, precision and PR-AUC for ten imbalance strategies. Right: Brier score bars showing raw and threshold-tuned models are far better calibrated than any resampler.">
+<img class="fig" src="img/fig_089.png" alt="Left: horizontal bars of recall, precision and PR-AUC for ten imbalance strategies. Right: Brier score bars showing raw and threshold-tuned models are far better calibrated than any resampler.">
 <div class="figcap">Fig. 14.4 - (a) every resampler trades precision for recall; (b) every
 resampler damages calibration - roughly $4\times$ the raw Brier score for the plain
 samplers, $2\times$ for Borderline-SMOTE and $11\times$ for ADASYN - because the model is
@@ -8809,7 +8955,7 @@ recall rises from $0.333$ to $0.583$ but precision falls from $0.923$ to $0.875$
 PR-AUC is flat ($0.597 \to 0.591$) and the Brier score explodes from $0.052$ to $0.135$
 <!-- prov: s14_smote.json:overlap_case -->.</p>
 
-<img class="fig" src="img/fig_089.png" alt="Three panels: decision boundary on overlapping classes before SMOTE, after SMOTE with synthetic points pushed into majority territory, and a bar chart showing PR-AUC unchanged while Brier score nearly triples.">
+<img class="fig" src="img/fig_090.png" alt="Three panels: decision boundary on overlapping classes before SMOTE, after SMOTE with synthetic points pushed into majority territory, and a bar chart showing PR-AUC unchanged while Brier score nearly triples.">
 <div class="figcap">Fig. 14.5 - SMOTE on overlapping classes: the boundary rotates to swallow
 synthetic points that were interpolated across the majority ribbon. Ranking quality is
 unchanged; calibration is destroyed.</div>
@@ -8846,7 +8992,7 @@ inside each CV fold, and it must never touch validation or test rows
 <p>Everything above collapses into one decision procedure. Read it top-down; the whole point
 of the ordering is that the cheap, reversible levers come first.</p>
 
-<img class="fig" src="img/fig_090.png" alt="Decision flowchart for imbalanced data: fix the metric and threshold first, then cost-sensitive learning, then undersample, SMOTE, or refuse to interpolate depending on minority count, dimension and overlap; with a mandatory note to fit the sampler inside the CV fold.">
+<img class="fig" src="img/fig_091.png" alt="Decision flowchart for imbalanced data: fix the metric and threshold first, then cost-sensitive learning, then undersample, SMOTE, or refuse to interpolate depending on minority count, dimension and overlap; with a mandatory note to fit the sampler inside the CV fold.">
 <div class="figcap">Fig. 14.6 - Imbalance strategy flowchart.</div>
 
 <div class="summary">
@@ -9047,12 +9193,12 @@ $$\phi_{\text{Area}} = \underbrace{\tfrac13(68-50)}_{S=\varnothing}
 + \underbrace{\tfrac13(80-56)}_{S=\{\text{B,Ag}\}}
 = 6 + \tfrac{22}{6} + \tfrac{20}{6} + 8 = 21 .$$
 
-<img class="fig" src="img/fig_091.png" alt="Coalition lattice for three features: the empty set on the left, three singletons, three pairs, and the full set on the right, with every edge labelled by the marginal contribution of the feature added.">
+<img class="fig" src="img/fig_092.png" alt="Coalition lattice for three features: the empty set on the left, three singletons, three pairs, and the full set on the right, with every edge labelled by the marginal contribution of the feature added.">
 <div class="figcap">Fig. 14.7 - The coalition lattice. Each of the $3! = 6$ left-to-right paths
 is one ordering; the Shapley value of a feature is the average of that feature's edge labels
 over the six paths.</div>
 
-<img class="fig" src="img/fig_092.png" alt="Left: waterfall chart from base value 50 through Area +21, Bedrooms +11, Age -2 to the prediction 80. Right: range of each feature's marginal contribution across the six orderings with the Shapley mean marked.">
+<img class="fig" src="img/fig_093.png" alt="Left: waterfall chart from base value 50 through Area +21, Bedrooms +11, Age -2 to the prediction 80. Right: range of each feature's marginal contribution across the six orderings with the Shapley mean marked.">
 <div class="figcap">Fig. 14.8 - (a) the local explanation as a waterfall: base $\to$ prediction,
 additively. (b) each feature's marginal contribution is <em>not</em> a single number - Area
 ranges over $18\dots24$ and Bedrooms over $8\dots14$ depending on who arrived first
@@ -9379,7 +9525,7 @@ re-fits it per fold, and report metrics only on rows no synthesis has ever touch
 <p><b>Map to v5's notation.</b> v5 writes the weight into node $j$ of layer $\ell$ from node $i$ as $w_{ij}^{(\ell)}$ - source first, destination second - and folds the bias into a dummy node $i=0$ with $x_0^{(\ell-1)} = 1$. That is the same object as $W^{(\ell)}_{ji}$ here, transposed. The destination-first convention is used throughout this section because it is the one that makes $\mathbf{W}^{(\ell)}\mathbf{a}^{(\ell-1)}$ type-check without a transpose, and it is what NumPy/PyTorch store. Whenever a formula below has a $\mathbf{W}^\top$ in it, v5's index order would have it without - that is the only difference.</p>
 </div>
 
-<img class="fig" src="img/fig_093.png" alt="A 2-2-1 network: two input nodes x1 and x2 feeding two tanh hidden units, feeding one sigmoid output unit, with every weight labelled, the computed activations printed under each node, and a shape ledger along the bottom.">
+<img class="fig" src="img/fig_094.png" alt="A 2-2-1 network: two input nodes x1 and x2 feeding two tanh hidden units, feeding one sigmoid output unit, with every weight labelled, the computed activations printed under each node, and a shape ledger along the bottom.">
 <div class="figcap">Fig. 15.1 - The running example: a 2-2-1 network with $\tanh$ hidden units and a sigmoid output, nine parameters in total. Node values are the forward pass computed in §15.7.</div>
 
 <h4>Counting parameters</h4>
@@ -9452,7 +9598,7 @@ $$\underbrace{\mathbf{Z}^{(\ell)}}_{(N\times d^{(\ell)})} \;=\; \underbrace{\mat
 
 <p><!-- prov: s15_activations.json:saturation --> Here $\Phi$ and $\phi$ are the standard-normal CDF and PDF. The $\max\theta'$ column is the entire story of §15.9 in one column: chaining $\ell$ sigmoid layers multiplies the gradient by at most $0.25^{\ell}$.</p>
 
-<img class="fig" src="img/fig_094.png" alt="Eight panels: sigmoid, tanh, ReLU, Leaky ReLU, ELU, GELU and softplus each plotted with their derivative, with the region where the absolute derivative is below 0.05 shaded; the last panel overlays four derivatives on one axis.">
+<img class="fig" src="img/fig_095.png" alt="Eight panels: sigmoid, tanh, ReLU, Leaky ReLU, ELU, GELU and softplus each plotted with their derivative, with the region where the absolute derivative is below 0.05 shaded; the last panel overlays four derivatives on one axis.">
 <div class="figcap">Fig. 15.2 - Each activation with its derivative. The shaded band marks $|\theta'(z)| &lt; 0.05$: the saturation zone, where a unit is alive in the forward pass but effectively disconnected in the backward pass. For the sigmoid this band starts at $|z| = 2.8873$; over the plotted window $[-6,6]$ it covers $51.9\%$ of the axis for sigmoid and $63.9\%$ for tanh.</div>
 
 <div class="summary">
@@ -9576,7 +9722,7 @@ $$\mathbf{J} = \begin{pmatrix} 0.2247 & -0.1598 & -0.0650\\ -0.1598 & 0.1837 & -
 <p><b>Gotcha - softmax vs. $K$ sigmoids.</b> Softmax enforces $\sum_k p_k = 1$ and therefore assumes the classes are <em>mutually exclusive</em>. For multi-label problems (an image can be both "beach" and "sunset") you want $K$ independent sigmoid units and $K$ independent BCE terms. Using softmax there forces the labels to compete for a fixed probability budget. The modelling side of this choice - softmax versus one-vs-rest - is section 3's.</p>
 </div>
 
-<img class="fig" src="img/fig_095.png" alt="Two-branch decision flowchart. Left branch, output layer: binary label to one sigmoid plus BCE; K exclusive classes to softmax plus cross-entropy; K independent tags to K sigmoids; real target to identity plus MSE; non-negative target to softplus or exp. Right branch, hidden layer: plain feed-forward to ReLU with He init; dead units to Leaky ReLU or ELU; transformer to GELU; recurrent to tanh with Xavier; legacy or gate to sigmoid.">
+<img class="fig" src="img/fig_096.png" alt="Two-branch decision flowchart. Left branch, output layer: binary label to one sigmoid plus BCE; K exclusive classes to softmax plus cross-entropy; K independent tags to K sigmoids; real target to identity plus MSE; non-negative target to softplus or exp. Right branch, hidden layer: plain feed-forward to ReLU with He init; dead units to Leaky ReLU or ELU; transformer to GELU; recurrent to tanh with Xavier; legacy or gate to sigmoid.">
 <div class="figcap">Fig. 15.3 - Activation choice. The output activation is <em>determined</em> by the target type and the loss you intend to pair it with; only the hidden activation is a free choice, and there the default is ReLU.</div>
 
 <h3>15.4 &nbsp; Why the nonlinearity is not optional</h3>
@@ -9747,7 +9893,7 @@ proba = forward(Xte, W1, b1, W2, b2)[-1].ravel()   # A2 of the test set = P(y = 
 <p class="wnote">Say in interview: the backward pass is three lines per layer and every one of them is fixed by shapes - <code>dW</code> must come out the shape of <code>W</code>, which uniquely determines the order and the transposes. Cost is $O(\#\text{weights})$ per sample, roughly $2\times$ the forward pass; memory is dominated by the cached $\mathbf{A}^{(\ell)}$, which is why batch size drives GPU memory. Two pitfalls to name unprompted: the bias must broadcast down the rows, not across the units, and the $1/N$ belongs in $\boldsymbol{\Delta}^{(L)}$ exactly once.</p>
 </details>
 
-<img class="fig" src="img/fig_096.png" alt="Computation graph. Top row left to right: x, z(1)=W(1)x+b(1), a(1)=tanh(z(1)), z(2)=W(2)a(1)+b(2), yhat=sigmoid(z(2)), L, each labelled with its shape. Bottom row right to left: delta(2)=yhat-y, dL/dW(2)=delta(2)a(1) transpose, delta(1), dL/dW(1)=delta(1)x transpose. A curved arrow connects L down to the start of the backward chain, and dotted vertical lines connect each cached forward value to the backward node that consumes it.">
+<img class="fig" src="img/fig_097.png" alt="Computation graph. Top row left to right: x, z(1)=W(1)x+b(1), a(1)=tanh(z(1)), z(2)=W(2)a(1)+b(2), yhat=sigmoid(z(2)), L, each labelled with its shape. Bottom row right to left: delta(2)=yhat-y, dL/dW(2)=delta(2)a(1) transpose, delta(1), dL/dW(1)=delta(1)x transpose. A curved arrow connects L down to the start of the backward chain, and dotted vertical lines connect each cached forward value to the backward node that consumes it.">
 <div class="figcap">Fig. 15.4 - The computation graph of Fig. 15.1's network. Solid arrows are data flow; the dotted verticals show which cached forward quantity each backward step consumes. Every backward arrow is one transpose-multiply, which is why the backward pass costs about the same as the forward pass.</div>
 
 <h4>Cost</h4>
@@ -9833,7 +9979,7 @@ assert rel_error(g_num, g_ana) &lt; 1e-6   # ~1e-2 means a transpose bug, not fl
 <p class="wnote">Say in interview: use the <em>central</em> difference, not the forward one - the error drops from $O(\varepsilon)$ to $O(\varepsilon^2)$ for the same two evaluations. Run it once on a toy-sized net, compare relative rather than absolute error, and expect agreement to ~10 digits; a mismatch confined to one layer localises the bug immediately. Caveat to volunteer: ReLU nets must be checked away from $z=0$, where the finite difference straddles the kink and legitimately disagrees.</p>
 </details>
 
-<img class="fig" src="img/fig_097.png" alt="Three panels. Left: cross-entropy loss falling from 0.375 to near 0.016 over 30 gradient-descent steps, with an annotation marking the drop to 0.0697 after one step. Middle: predicted probability rising from 0.687 toward 0.984. Right: horizontal bar chart of the six weight gradients at step 0, with W(1)22 the largest in magnitude at -0.902.">
+<img class="fig" src="img/fig_098.png" alt="Three panels. Left: cross-entropy loss falling from 0.375 to near 0.016 over 30 gradient-descent steps, with an annotation marking the drop to 0.0697 after one step. Middle: predicted probability rising from 0.687 toward 0.984. Right: horizontal bar chart of the six weight gradients at step 0, with W(1)22 the largest in magnitude at -0.902.">
 <div class="figcap">Fig. 15.5 - Thirty steps of full-batch gradient descent on the single training pair. Loss $0.374964 \to 0.069660 \to 0.016280$ at steps $0, 1, 30$; $\hat y$ reaches $0.983851$. The bar chart is the credit assignment at step $0$.</div>
 
 <div class="summary">
@@ -9873,7 +10019,7 @@ $$\mathrm{Var}\big(z^{(\ell)}_j\big) \;=\; \mathrm{Var}\Big(\sum_{i=1}^{n_{\text
 
 <p>The factor of $2$ is the whole content of the He result, and it is not cosmetic: over $\ell$ layers the missing factor compounds to $2^{-\ell/2}$.</p>
 
-<img class="fig" src="img/fig_098.png" alt="Two log-scale panels of activation standard deviation against layer index for a 30-layer, 128-wide MLP. Left: tanh with sd 0.01 collapses to 1e-29, tanh with sd 1.0 and tanh with Xavier stay near 1, sigmoid with Xavier sits slightly lower. Right: ReLU with Xavier decays to 1e-5, ReLU with He stays near 1, ReLU with sd 1.0 explodes to 1e27.">
+<img class="fig" src="img/fig_099.png" alt="Two log-scale panels of activation standard deviation against layer index for a 30-layer, 128-wide MLP. Left: tanh with sd 0.01 collapses to 1e-29, tanh with sd 1.0 and tanh with Xavier stay near 1, sigmoid with Xavier sits slightly lower. Right: ReLU with Xavier decays to 1e-5, ReLU with He stays near 1, ReLU with sd 1.0 explodes to 1e27.">
 <div class="figcap">Fig. 15.6 - Standard deviation of the activations $\mathbf{A}^{(\ell)}$ (shape $512\times128$) through a 30-layer plain MLP, $512$ standard-normal inputs, seed $20250810$. Left: $\mathcal{N}(0,0.01^2)$ collapses the signal to $4.02\times10^{-29}$ by layer 30; Xavier holds it at $0.1416$. Right: ReLU with Xavier decays to $1.94\times10^{-5}$ while ReLU with He holds $1.3294$ - that gap is the factor of $2$, compounded thirty times.</div>
 
 <div class="summary">
@@ -9902,7 +10048,7 @@ $$\boldsymbol{\delta}^{(\ell)} \;=\; \left[\prod_{m=\ell+1}^{L} \mathbf{D}^{(m-1
 
 <p><!-- prov: s15_activations.json:chain --> This is the <em>best</em> case: it assumes every unit sits exactly at $z=0$. It is why nobody trained deep sigmoid networks before ReLU, and why the fix has to attack the multiplicative structure rather than the learning rate.</p>
 
-<img class="fig" src="img/fig_099.png" alt="Log-scale plot of gradient norm against the layer the gradient has reached, for five activation-and-initialisation combinations through a 30-layer MLP. Sigmoid with Xavier and tanh with sd 0.01 fall off toward 1e-19 and 1e-25; tanh with sd 1.0 rises to 1e12; tanh with Xavier and ReLU with He stay flat near 1.">
+<img class="fig" src="img/fig_100.png" alt="Log-scale plot of gradient norm against the layer the gradient has reached, for five activation-and-initialisation combinations through a 30-layer MLP. Sigmoid with Xavier and tanh with sd 0.01 fall off toward 1e-19 and 1e-25; tanh with sd 1.0 rises to 1e12; tanh with Xavier and ReLU with He stay flat near 1.">
 <div class="figcap">Fig. 15.7 - A unit-norm gradient seeded at the top of a 30-layer MLP, measured as it is propagated back. Ratio of the gradient arriving at layer 1 to the one seeded at layer 30: sigmoid+Xavier $1.33\times10^{-19}$; tanh with $\mathrm{sd}\,0.01$ $4.10\times10^{-29}$; tanh with $\mathrm{sd}\,1.0$ $5.24\times10^{11}$; tanh+Xavier $0.167$; ReLU+He $1.355$.</div>
 
 <div class="summary">
@@ -10135,7 +10281,7 @@ strongest response, $-10$, sits where the $\{1,5,8\}/\{2,7,2\}$ rows meet the br
 $\{8,9\}$ column - the sharpest vertical edge in the image.</p>
 </div>
 
-<img class="fig" src="img/fig_100.png" alt="Four number grids: the 5x5 input with the top-left 3x3 window outlined, the 3x3 vertical-edge kernel, the 3x3 valid-convolution output with the top-left cell highlighted, and the 2x2 stride-2 output.">
+<img class="fig" src="img/fig_101.png" alt="Four number grids: the 5x5 input with the top-left 3x3 window outlined, the 3x3 vertical-edge kernel, the 3x3 valid-convolution output with the top-left cell highlighted, and the 2x2 stride-2 output.">
 <div class="figcap">Fig. 16.1 - The same kernel at stride 1 and stride 2. Stride 2 keeps only the
 windows starting at even offsets, so its $2\times2$ output is exactly the four corners of the
 $3\times3$ one: $-5, 0, 0, -4$.</div>
@@ -10282,7 +10428,7 @@ assert n_params(3, 3, 64) == W.size + 64               # weights + one bias per 
 <p class="wnote">Say in interview: quote $O=\lfloor(N+2P-K_{\text{eff}})/S\rfloor+1$ and immediately note the two traps - the $+1$, and that a non-integer ratio means a strip of the input is never covered. Parameter count $K^2C_{\text{in}}C_{\text{out}}+C_{\text{out}}$ is independent of resolution; FLOPs are not (multiply by $H_oW_o$). Nobody loops in production - cuDNN reduces convolution to a matrix multiply - but the loop is what you write on a whiteboard, and <code>Y[:, i, j] = np.sum(W * patch, axis=(1,2,3))</code> is the line that shows you know channels are summed over and output channels are not.</p>
 </details>
 
-<img class="fig" src="img/fig_101.png" alt="Left: output size versus input size as a staircase for four hyperparameter settings, with the n=7 and n=8 points marked as giving the same output. Right: spatial size across five stacked 3x3 convolutions, valid padding falling 224 to 214 while same padding stays flat.">
+<img class="fig" src="img/fig_102.png" alt="Left: output size versus input size as a staircase for four hyperparameter settings, with the n=7 and n=8 points marked as giving the same output. Right: spatial size across five stacked 3x3 convolutions, valid padding falling 224 to 214 while same padding stays flat.">
 <div class="figcap">Fig. 16.2 - Output size is a step function of input size: a whole range of
 inputs maps to one output. Right: the cumulative cost of valid padding.</div>
 
@@ -10415,7 +10561,7 @@ two $3\times3$s cost $73{,}856$ - $27.9\%$ fewer
 non-linearity between them.</p>
 </div>
 
-<img class="fig" src="img/fig_102.png" alt="Left: receptive field versus layer index on a log axis for a plain 3x3 stack, a stack with pooling, and a dilated stack reaching 63. Right: bar chart comparing 102,464 parameters for one 5x5 convolution against 73,856 for two stacked 3x3 convolutions.">
+<img class="fig" src="img/fig_103.png" alt="Left: receptive field versus layer index on a log axis for a plain 3x3 stack, a stack with pooling, and a dilated stack reaching 63. Right: bar chart comparing 102,464 parameters for one 5x5 convolution against 73,856 for two stacked 3x3 convolutions.">
 <div class="figcap">Fig. 16.3 - Receptive-field growth is linear for plain stacks, piecewise
 faster with pooling, exponential with dilation. Right: the VGG argument in one picture.</div>
 
@@ -10447,7 +10593,7 @@ map gives the single number $3.625$ <!-- prov: s16_conv.json:pooling.gap -->.</p
 $$\mathbf{P}_{(4\times4)}=\begin{pmatrix}1&3&2&4\\5&6&1&2\\7&2&9&0\\1&4&3&8\end{pmatrix}$$
 </div>
 
-<img class="fig" src="img/fig_103.png" alt="Four grids: the 4x4 feature map with its four pooling windows outlined, the 2x2 max-pool result, the 2x2 average-pool result, and the max-pool result after shifting the input one column right, with two of the four cells changed.">
+<img class="fig" src="img/fig_104.png" alt="Four grids: the 4x4 feature map with its four pooling windows outlined, the 2x2 max-pool result, the 2x2 average-pool result, and the max-pool result after shifting the input one column right, with two of the four cells changed.">
 <div class="figcap">Fig. 16.4 - Max, average, and the shift test. Shifting the input one column
 right changes 2 of the 4 pooled outputs.</div>
 
@@ -10487,7 +10633,7 @@ the formulas above <!-- prov: s16_conv.json:lenet -->.</p>
 </table>
 </div>
 
-<img class="fig" src="img/fig_104.png" alt="Schematic of eight stacked layers from 28x28x6 through to a 10-way output, each box annotated with its output shape and parameter count, total 61,706.">
+<img class="fig" src="img/fig_105.png" alt="Schematic of eight stacked layers from 28x28x6 through to a 10-way output, each box annotated with its output shape and parameter count, total 61,706.">
 <div class="figcap">Fig. 16.5 - The LeNet-style stack. Spatial size shrinks, depth grows, and
 $48{,}120$ of the $61{,}706$ parameters - $78.0\%$ - sit in the single dense layer that follows
 the flatten.
@@ -10595,7 +10741,7 @@ $(1-\rho)^{30}=0.0424$ after thirty batches
 <!-- prov: s16_norm.json:running_stats.bias_after_30 -->, which is why a network evaluated
 after a handful of steps can look far worse than it is.</p>
 
-<img class="fig" src="img/fig_105.png" alt="Three panels: grouped bars of the raw 4x3 pre-activation batch with its per-feature means marked; the same bars after standardisation centred on zero; and running-mean curves for three features converging to their true values 5, 10 and 2 over 60 batches.">
+<img class="fig" src="img/fig_106.png" alt="Three panels: grouped bars of the raw 4x3 pre-activation batch with its per-feature means marked; the same bars after standardisation centred on zero; and running-mean curves for three features converging to their true values 5, 10 and 2 over 60 batches.">
 <div class="figcap">Fig. 16.6 - BatchNorm's two regimes. Left/middle: the train-time transform on
 the worked batch. Right: the inference-time statistics converging.</div>
 
@@ -10715,7 +10861,7 @@ $\mathbf{h}_0=\mathbf{0}$, target $y=1$, loss $L=\tfrac12(\hat y-y)^2$:</p>
 <!-- prov: s16_rnn.json:rnn_forward.y_hat --> and
 $L=\tfrac12(-1.289881)^2 = 0.831897$ <!-- prov: s16_rnn.json:rnn_forward.loss -->.</p>
 
-<img class="fig" src="img/fig_106.png" alt="Unrolled RNN computation graph: h_0 feeding three time-step blocks each annotated with its pre-activation and hidden state, inputs entering from below, and an output head computing y = -0.2899 and loss 0.8319.">
+<img class="fig" src="img/fig_107.png" alt="Unrolled RNN computation graph: h_0 feeding three time-step blocks each annotated with its pre-activation and hidden state, inputs entering from below, and an output head computing y = -0.2899 and loss 0.8319.">
 <div class="figcap">Fig. 16.7 - The unrolled graph carrying the computed trace. Unrolling makes
 the graph deep in <em>time</em>; the parameter count does not grow.</div>
 
@@ -10853,7 +10999,7 @@ and over $20$ steps the factor is $3.76\times10^{-15}$; at $h=0.99$ it is
 $9.49\times10^{-35}$ <!-- prov: s16_rnn.json:tanh_shrink -->.</p>
 </div>
 
-<img class="fig" src="img/fig_107.png" alt="Left: log-scale curves of Jacobian-product norm over 50 time steps for five spectral radii, fanning out from 1e-16 to 1e9. Right: log-scale bars of (1-h^2)^20 for h = 0, 0.5, 0.9, 0.99 falling from 1 to 9.49e-35.">
+<img class="fig" src="img/fig_108.png" alt="Left: log-scale curves of Jacobian-product norm over 50 time steps for five spectral radii, fanning out from 1e-16 to 1e9. Right: log-scale bars of (1-h^2)^20 for h = 0, 0.5, 0.9, 0.99 falling from 1 to 9.49e-35.">
 <div class="figcap">Fig. 16.8 - Exponential in the number of steps, in both directions. Only the
 knife-edge $\lambda=1$ survives, and it is not learnable.</div>
 
@@ -10909,7 +11055,7 @@ the standard "initialise the forget bias to 1" trick, which starts the cell in
 </table>
 </div>
 
-<img class="fig" src="img/fig_108.png" alt="LSTM cell schematic: a horizontal cell-state conveyor from c_{t-1} = (0.5, 0.3) to c_t = (0.3402, 0.4095), with four gate boxes (forget, input, candidate, output) below it carrying their computed values, all fed from the concatenated input z.">
+<img class="fig" src="img/fig_109.png" alt="LSTM cell schematic: a horizontal cell-state conveyor from c_{t-1} = (0.5, 0.3) to c_t = (0.3402, 0.4095), with four gate boxes (forget, input, candidate, output) below it carrying their computed values, all fed from the concatenated input z.">
 <div class="figcap">Fig. 16.9 - The computed step. The cell state travels along the top as an
 addition, not a matrix multiply.</div>
 
@@ -11005,7 +11151,7 @@ $77\%$ of the way toward the noun's value vector - the network has resolved "who
 any notion of adjacency.</p>
 </div>
 
-<img class="fig" src="img/fig_109.png" alt="Three panels: the 4x4 scaled attention matrix as a heatmap with 0.770 at the sat-cat cell, the unscaled version with 0.948 at the same cell, and line plots of the sat row under five softmax temperatures from near-one-hot to near-uniform.">
+<img class="fig" src="img/fig_110.png" alt="Three panels: the 4x4 scaled attention matrix as a heatmap with 0.770 at the sat-cat cell, the unscaled version with 0.948 at the same cell, and line plots of the sat row under five softmax temperatures from near-one-hot to near-uniform.">
 <div class="figcap">Fig. 16.10 - The attention matrix. Rows for "the" and "down" are exactly
 uniform at $0.25$: their queries have equal dot products with every key, so they attend to
 nothing in particular - the correct behaviour for a token that carries no selectional
@@ -11132,7 +11278,7 @@ contribute $2\times2d_{\text{model}} = 2{,}048$ more, so a full block is
 $1{,}048{,}576+2{,}099{,}712+2{,}048 = 3{,}150{,}336$ parameters
 <!-- prov: s16_attention.json:mha --> - two thirds of it in the FFN, not the attention.</p>
 
-<img class="fig" src="img/fig_110.png" alt="Vertical schematic of a Transformer encoder block: embeddings plus positional encoding, multi-head self-attention, add and LayerNorm, position-wise feed-forward 512 to 2048 to 512, add and LayerNorm, output, with two residual bypass arrows and a parameter tally.">
+<img class="fig" src="img/fig_111.png" alt="Vertical schematic of a Transformer encoder block: embeddings plus positional encoding, multi-head self-attention, add and LayerNorm, position-wise feed-forward 512 to 2048 to 512, add and LayerNorm, output, with two residual bypass arrows and a parameter tally.">
 <div class="figcap">Fig. 16.11 - One encoder block. The tensor keeps shape
 $(n \times d_{\text{model}})$ from end to end, which is why blocks stack without any
 bookkeeping.</div>
@@ -11297,7 +11443,7 @@ $p_g=\mathcal{N}(\mu_g,1)$, integrating on a fine grid
 maximum $\log 2 = 0.693147$ as the distributions separate - which is precisely the problem in
 Step 4 below.</p>
 
-<img class="fig" src="img/fig_111.png" alt="Three panels: the two Gaussian densities with the optimal discriminator sigmoid-like curve crossing 0.5 at their intersection; V at the optimal D and -log4+2JSD plotted against generator shift, coinciding exactly; and an adversarial training trace where the generator mean falls from 3 to 0 while D(G(z)) rises to 0.5.">
+<img class="fig" src="img/fig_112.png" alt="Three panels: the two Gaussian densities with the optimal discriminator sigmoid-like curve crossing 0.5 at their intersection; V at the optimal D and -log4+2JSD plotted against generator shift, coinciding exactly; and an adversarial training trace where the generator mean falls from 3 to 0 while D(G(z)) rises to 0.5.">
 <div class="figcap">Fig. 16.12 - Left: $D^\star$ as a density ratio, crossing $0.5$ exactly where
 the densities cross. Middle: the identity $V(D^\star,G)=-\log4+2\,\mathrm{JSD}$ verified
 numerically. Right: 120 alternating updates on a 1-D toy problem.</div>
@@ -11361,12 +11507,12 @@ people call mode collapse and training instability.</p>
 what structure does the input have, how far apart are the dependencies, is the task
 generative, and what can you afford.</p>
 
-<img class="fig" src="img/fig_112.png" alt="Decision flowchart from input structure - grid, sequence, set/graph, tabular - down through CNN, GRU/LSTM versus Transformer, attention/graph nets and MLP, then a generative-task decision leading to task heads or GAN/diffusion/VAE.">
+<img class="fig" src="img/fig_113.png" alt="Decision flowchart from input structure - grid, sequence, set/graph, tabular - down through CNN, GRU/LSTM versus Transformer, attention/graph nets and MLP, then a generative-task decision leading to task heads or GAN/diffusion/VAE.">
 <div class="figcap">Fig. 16.13 - Architecture for data. Note the tabular branch: for flat
 feature vectors, gradient boosting (<a href="#s13">§13</a>) usually still beats a neural
 network.</div>
 
-<img class="fig" src="img/fig_113.png" alt="Decision flowchart for normalisation layers: batch-size question leading to BatchNorm with its train/eval warning on one side, and LayerNorm, GroupNorm and InstanceNorm on the other.">
+<img class="fig" src="img/fig_114.png" alt="Decision flowchart for normalisation layers: batch-size question leading to BatchNorm with its train/eval warning on one side, and LayerNorm, GroupNorm and InstanceNorm on the other.">
 <div class="figcap">Fig. 16.14 - Normalisation choice. The deciding question is almost always
 "can I rely on a large, i.i.d. mini-batch at train time?"</div>
 
@@ -11630,7 +11776,7 @@ $$\mathbf{w} = \sum_{i\in\text{SV}}\alpha_iy_i\mathbf{x}_i, \qquad b = 1-\mathbf
 Every interior point is thrown away entirely - the decision boundary depends only on the
 handful of points sitting exactly on the margin.</p>
 
-<img class="fig" src="img/fig_114.png" alt="Hard margin SVM on an 8-point vertical-band dataset, corridor shaded, three support vectors circled">
+<img class="fig" src="img/fig_115.png" alt="Hard margin SVM on an 8-point vertical-band dataset, corridor shaded, three support vectors circled">
 <div class="figcap">Fig. 17.1 - the recomputed 8-point example below: positives with
 $x_1\ge3$, negatives with $x_1\le1$. Boundary $x_1=2$ (solid), margin lines $x_1=1$ and $x_1=3$
 (dashed), corridor shaded. The three circled points are the support vectors; the remaining five
@@ -11865,7 +12011,7 @@ for name, kw in [("linear", {}),
 17.5) - dropping it (coef0=0) changes the implicit feature map, not just a scaling detail.</p>
 </details>
 
-<img class="fig" src="img/fig_115.png" alt="Two concentric rings not linearly separable in input space, becoming linearly separable after the RBF radial feature map">
+<img class="fig" src="img/fig_116.png" alt="Two concentric rings not linearly separable in input space, becoming linearly separable after the RBF radial feature map">
 <div class="figcap">Fig. 17.2 - two concentric rings (120 points), a case v5 never drew a
 before/after picture for. Left: no line separates the classes in raw $(x_1,x_2)$ space (linear
 kernel achieves only 62.5% training accuracy). Right: the single radial feature
@@ -11916,7 +12062,7 @@ linear one in $\mathbf{Z}$-space, the same phenomenon Fig. 17.2 shows with the R
 <p>Try walking through a few feature-space scenarios - a dataset that already looks linearly
 separable, one with a known fixed-degree polynomial interaction, one where nothing is known about
 the non-linearity - against the flowchart below before reading past it.</p>
-<img class="fig" src="img/fig_116.png" alt="Decision flowchart for choosing a linear, polynomial or RBF kernel and tuning its hyperparameter">
+<img class="fig" src="img/fig_117.png" alt="Decision flowchart for choosing a linear, polynomial or RBF kernel and tuning its hyperparameter">
 <div class="figcap">Fig. 17.3 - which kernel? Start from what you know about the data's
 separability, not from the model's flexibility. A more flexible kernel is not automatically
 better - RBF's $\gamma$ trades off against $C$ exactly the way flexibility trades off
@@ -12045,7 +12191,7 @@ for C in [0.01, 1, 100, 1e6]:
 not the box-constraint regime; free support vectors satisfy 0 &lt; alpha_i &lt; C strictly.</p>
 </details>
 
-<img class="fig" src="img/fig_117.png" alt="Same overlapping dataset fit with small C (wide margin, many bound support vectors) versus large C (narrow margin, all free support vectors)">
+<img class="fig" src="img/fig_118.png" alt="Same overlapping dataset fit with small C (wide margin, many bound support vectors) versus large C (narrow margin, all free support vectors)">
 <div class="figcap">Fig. 17.4 - the $C$-sweep example at its two extremes. Left ($C{=}0.01$):
 wide margin, most support vectors are &ldquo;bound&rdquo; (orange rings, $\alpha_i{=}C$) -
 the optimiser tolerates violations freely. Right ($C{=}100$): narrow margin, every support vector
@@ -12180,7 +12326,7 @@ $$\frac{\mathrm{std}(d^2)}{\mathbb{E}[d^2]} = \frac{\sqrt{D\,\mathrm{Var}[(x_1-y
 <p>So as $D\to\infty$, every pairwise distance converges to roughly the same value - the nearest
 and farthest points become statistically indistinguishable.</p>
 
-<img class="fig" src="img/fig_118.png" alt="Relative spread of pairwise Euclidean distances shrinking as dimension D grows, on log-x axis">
+<img class="fig" src="img/fig_119.png" alt="Relative spread of pairwise Euclidean distances shrinking as dimension D grows, on log-x axis">
 <div class="figcap">Fig. 18.1 - 500 points drawn i.i.d. uniform in $[0,1]^D$; both the
 relative range $(d_{\max}-d_{\min})/d_{\text{mean}}$ and the relative standard deviation
 $\mathrm{std}(d)/d_{\text{mean}}$ of all pairwise distances collapse toward zero as $D$ grows
@@ -12379,7 +12525,7 @@ $$\mathbf{u}_1 = (1,0), \qquad \text{variance explained by PC1} = \frac{6.0}{6.0
 Both numbers match v5 §12 exactly, confirming the source's worked example.</p>
 </div>
 
-<img class="fig" src="img/fig_119.png" alt="Skewed 4-point example with PC1 and PC2 eigenvector arrows drawn through the mean">
+<img class="fig" src="img/fig_120.png" alt="Skewed 4-point example with PC1 and PC2 eigenvector arrows drawn through the mean">
 <div class="figcap">Fig. 18.2 - the skewed 4-point example: PC1 (red, along the axis of
 largest spread, $\lambda_1{=}6.000$) and PC2 (green, orthogonal, $\lambda_2{=}0.667$) drawn
 through the data mean. PC1 alone captures $90\%$ of the total variance.</div>
@@ -12428,7 +12574,7 @@ onto the PC1 line (Fig. 18.3); e.g. $(6,7)\to(6.584,\,6.415)$.
 <!-- prov: s18_pca_worked.json:fresh_example.reconstruction_from_PC1 --></p>
 </div>
 
-<img class="fig" src="img/fig_120.png" alt="Six original points, the PC1 axis through the mean, and each point's projection/reconstruction onto that axis">
+<img class="fig" src="img/fig_121.png" alt="Six original points, the PC1 axis through the mean, and each point's projection/reconstruction onto that axis">
 <div class="figcap">Fig. 18.3 - the fresh 6-point example: original points (circles), the PC1
 axis through the mean (dashed), and each point's reconstruction using only PC1 (crosses,
 connected by dotted residual lines). Points already near the diagonal (e.g. $(5,5)$) reconstruct
@@ -12442,7 +12588,7 @@ $$\text{variance explained ratio} = \frac{\sum_{k=1}^{d}\lambda_k}{\sum_{k=1}^{D
 <!-- prov: s18_pca_worked.json:fresh_example.total_variance -->, and PC1 alone already explains
 $95.4\%$ of it, PC2 the remaining $4.6\%$ <!-- prov: s18_pca_worked.json:fresh_example.variance_explained_pct,cumulative_variance_explained_pct --> - dropping PC2 loses very little.</p>
 
-<img class="fig" src="img/fig_121.png" alt="Scree bar chart: 95.4 percent variance explained by PC1, 4.6 percent by PC2, cumulative line reaching 100 percent">
+<img class="fig" src="img/fig_122.png" alt="Scree bar chart: 95.4 percent variance explained by PC1, 4.6 percent by PC2, cumulative line reaching 100 percent">
 <div class="figcap">Fig. 18.4 - scree plot for the fresh example: bars are per-component
 variance explained, the line is the running cumulative total. In real (higher-$D$) datasets this
 is the standard plot for choosing $d$ - keep components up to the "elbow" where the curve
@@ -12647,7 +12793,7 @@ angles between them. Raw pixels are not a feature space in which "distance small
 tiger". A good feature map is what makes clustering possible at all; the algorithm is the easy
 part.</p>
 
-<img class="fig" src="img/fig_122.png" alt="Three panels: unlabelled scatter of 150 users in age-rating space; the same users split into three vertical slabs by age alone; k-means with k=3 on standardised age and rating recovering the three true groups">
+<img class="fig" src="img/fig_123.png" alt="Three panels: unlabelled scatter of 150 users in age-rating space; the same users split into three vertical slabs by age alone; k-means with k=3 on standardised age and rating recovering the three true groups">
 <div class="figcap">Fig. 19.1 - The deck's Netflix example made numeric: 150 synthetic users with
 an <em>age</em> and an <em>average episode rating</em>. (a) what the algorithm actually sees;
 (b) the deck's "group by age" cut - three vertical slabs that
@@ -12713,7 +12859,7 @@ roughly the same way ($\cos = +0.478$) yet their <em>deviations from their own m
 anti-correlated ($\mathrm{corr}=-0.3085$), so the correlation distance exceeds $1$. Cosine and
 correlation are not interchangeable.</p>
 
-<img class="fig" src="img/fig_123.png" alt="Four panels showing iso-distance contours in 2D: diamond-shaped Manhattan unit ball, circular Euclidean unit ball, square Chebyshev unit ball, and wedge-shaped cosine distance contours radiating from the origin">
+<img class="fig" src="img/fig_124.png" alt="Four panels showing iso-distance contours in 2D: diamond-shaped Manhattan unit ball, circular Euclidean unit ball, square Chebyshev unit ball, and wedge-shaped cosine distance contours radiating from the origin">
 <div class="figcap">Fig. 19.2 - The unit ball $\{\mathbf{z}: d(\mathbf{0},\mathbf{z})=1\}$ is the
 shape of a metric's opinion about "equally far". Darker shading = smaller distance. Manhattan gives
 a diamond, Euclidean a circle, Chessboard a square; cosine has no ball at all - its level sets are
@@ -12799,7 +12945,7 @@ $$d_M^2(\mathbf{u},\boldsymbol\mu_2)=\frac{(-3.5)^2}{16}+\frac{(-2)^2}{2.25}
 ranking has flipped. <!-- prov: s19_distances.json:mahalanobis.flip --></p>
 </div>
 
-<img class="fig" src="img/fig_124.png" alt="Two panels showing a tight circular prototype on the left, a wide flat elliptical prototype on the right, and an unknown point below; Euclidean picks the tight prototype, Mahalanobis picks the wide one">
+<img class="fig" src="img/fig_125.png" alt="Two panels showing a tight circular prototype on the left, a wide flat elliptical prototype on the right, and an unknown point below; Euclidean picks the tight prototype, Mahalanobis picks the wide one">
 <div class="figcap">Fig. 19.3 - Slide 21 redrawn with numbers. Shaded rings are the $1\sigma$,
 $2\sigma$ and $3\sigma$ contours of each prototype's covariance. In plain Euclidean terms the
 Unknown is $3.20$ from Prototype-1 and $4.03$ from Prototype-2; measured in each prototype's
@@ -12882,7 +13028,7 @@ $10$. Endpoints $\mathbf{x}$ and $\mathbf{y}$ sit at the two open ends of the C.
 dataset; a geodesic clusterer knows they are the two most distant points on it.</p>
 </div>
 
-<img class="fig" src="img/fig_125.png" alt="Left: points on a C-shaped arc with an epsilon-ball drawn around one point and the resulting neighbourhood graph edges; right: the short straight chord between the two open ends versus the long geodesic path that follows the arc">
+<img class="fig" src="img/fig_126.png" alt="Left: points on a C-shaped arc with an epsilon-ball drawn around one point and the resulting neighbourhood graph edges; right: the short straight chord between the two open ends versus the long geodesic path that follows the arc">
 <div class="figcap">Fig. 19.4 - Slide 22 made computable. (a) the local neighbourhood
 $N(x)=\epsilon$ and the $\epsilon$-graph it generates; (b) the chord ($3.08$, dashed red) versus
 the geodesic ($8.95$, solid green) - a factor of $2.91$.</div>
@@ -13082,7 +13228,7 @@ $$\boldsymbol\mu_1=(3.6\overline{6},\,9),\quad \boldsymbol\mu_2=(7,\,4.3\overlin
 \boldsymbol\mu_3=(1.5,\,3.5),\qquad J^\star = 14.3\overline{3}.$$
 </div>
 
-<img class="fig" src="img/fig_126.png" alt="Four panels of the k-means trace on eight labelled points: initial centres, first assignment with spokes to centres, recomputed means, and the converged partition">
+<img class="fig" src="img/fig_127.png" alt="Four panels of the k-means trace on eight labelled points: initial centres, first assignment with spokes to centres, recomputed means, and the converged partition">
 <div class="figcap">Fig. 19.5 - The deck's four-step summary
 recomputed on the eight-point dataset. Spokes join each point to the centre it is currently
 assigned to; crosses are centroids (in panel 1 they sit exactly on $A_1$, $A_4$, $A_7$ because
@@ -13097,7 +13243,7 @@ tessellation, so every cluster boundary is a straight line, and points near a bo
 centres move. Compare $J$ with the $k=1$ value $J(1)=100.75$
 <!-- prov: s19_kmeans.json:worked8.wcss_k1 -->: three clusters explain $86\%$ of the total spread.</p>
 
-<img class="fig" src="img/fig_127.png" alt="Left: WCSS decreasing monotonically across alternating assignment and update half-steps of the eight-point trace; right: histogram of final WCSS over 200 restarts showing a bimodal distribution for random init versus k-means++">
+<img class="fig" src="img/fig_128.png" alt="Left: WCSS decreasing monotonically across alternating assignment and update half-steps of the eight-point trace; right: histogram of final WCSS over 200 restarts showing a bimodal distribution for random init versus k-means++">
 <div class="figcap">Fig. 19.6 - (a) $J$ across every half-step of the trace:
 $67.00 \to 37.00 \to 29.00 \to 23.25 \to 19.69 \to 14.33$, then flat - never once increasing,
 exactly as the convergence proof requires. The dashed line is the value $45.80$ reached from a
@@ -13286,7 +13432,7 @@ $k$; you must look for the <em>kink</em>.</p>
 <p><!-- prov: s19_kmeans.json:elbow.curve --> (standardised Netflix users, $n=150$, $p=2$; each
 entry is the best of 30 k-means++ restarts.)</p>
 
-<img class="fig" src="img/fig_128.png" alt="Left: WCSS versus k falling steeply to k=3 then flattening, with k=3 circled; right: bar chart of the marginal WCSS drop per k showing the last large drop at k=3">
+<img class="fig" src="img/fig_129.png" alt="Left: WCSS versus k falling steeply to k=3 then flattening, with k=3 circled; right: bar chart of the marginal WCSS drop per k showing the last large drop at k=3">
 <div class="figcap">Fig. 19.7 - The elbow. (a) $J^\star(k)$; (b) the marginal gain
 $J(k{-}1)-J(k)$, which falls off a cliff after $k=3$: $203.74,\ 64.50,\ 9.57,\ 4.35,\dots$
 <!-- prov: s19_kmeans.json:elbow --></div>
@@ -13371,7 +13517,7 @@ they should agree except in exactly the ambiguous cases worth a second look.</p>
 </table>
 </div>
 
-<img class="fig" src="img/fig_129.png" alt="Three panels of k-means failures: two interleaved moons cut vertically, two parallel diagonal stripes cut perpendicular to their long axis, and a tight blob next to a diffuse blob where the tight cluster annexes part of the diffuse one">
+<img class="fig" src="img/fig_130.png" alt="Three panels of k-means failures: two interleaved moons cut vertically, two parallel diagonal stripes cut perpendicular to their long axis, and a tight blob next to a diffuse blob where the tight cluster annexes part of the diffuse one">
 <div class="figcap">Fig. 19.8 - Three failures, marker shape = true group, colour = k-means
 label, black crosses = centroids. (a) two moons: $74.5\%$ agreement. (b) two long parallel stripes
 offset across their short axis: $50.5\%$ - pure chance, because k-means cuts them
@@ -13556,7 +13702,7 @@ memberships flatten toward $1/c$. Note that $\mathbf{J}_m$ values are <b>not com
 different $m$</b> (the exponent changes the units), so you cannot tune $m$ by minimising
 $\mathbf{J}_m$.</p>
 
-<img class="fig" src="img/fig_130.png" alt="Left: crisp step function versus smooth fuzzy membership ramps for three values of the fuzzifier m; right: two-cluster scatter coloured by membership with three boundary points circled, one having membership 0.49 versus 0.51">
+<img class="fig" src="img/fig_131.png" alt="Left: crisp step function versus smooth fuzzy membership ramps for three values of the fuzzifier m; right: two-cluster scatter coloured by membership with three boundary points circled, one having membership 0.49 versus 0.51">
 <div class="figcap">Fig. 19.9 - (a) crisp membership is a step at the midpoint; fuzzy
 membership is a ramp whose steepness is set by $m$. (b) the "users at the edge" situation on 83 two-dimensional points: colour is $u_{1k}$; the three
 circled boundary points get memberships $(0.486,0.514)$, $(0.808,0.192)$ and $(0.137,0.863)$,
@@ -13747,7 +13893,7 @@ $J(\boldsymbol\mu, C)=\sum_{k}\sum_{\mathbf{x}_i\in C_k}\lVert\mathbf{x}_i-\bold
 the intersection of half-spaces, hence convex. A crescent is not convex. A ring is not convex.
 No setting of $k$, no initialisation, no number of restarts will let k-means recover them.</p>
 
-<img class="fig" src="img/fig_131.png" alt="Four panels: k-means and DBSCAN on two interleaving moons and on two concentric rings; k-means cuts both datasets with a straight boundary while DBSCAN recovers the true shapes">
+<img class="fig" src="img/fig_132.png" alt="Four panels: k-means and DBSCAN on two interleaving moons and on two concentric rings; k-means cuts both datasets with a straight boundary while DBSCAN recovers the true shapes">
 <div class="figcap">Fig. 20.1 - The same two datasets under k-means ($k=2$) and DBSCAN.
 k-means slices each dataset with the perpendicular bisector of its two centroids; DBSCAN
 follows the crowd and recovers both moons and both rings exactly, with zero points labelled
@@ -13806,7 +13952,7 @@ write <em>Eps</em>. They are the same parameter.</p>
 "For MinPts $=5$" next to two circles, but never counts the points in either circle. Here is that count done properly on a
 redrawn 15-point set with $\varepsilon=1.0$ and MinPts $=5$.</p>
 
-<img class="fig" src="img/fig_132.png" alt="Scatter of 15 labelled points with dashed epsilon-balls around p1, b1 and o1, showing core points as red circles, border points as orange squares and one noise point as a grey cross">
+<img class="fig" src="img/fig_133.png" alt="Scatter of 15 labelled points with dashed epsilon-balls around p1, b1 and o1, showing core points as red circles, border points as orange squares and one noise point as a grey cross">
 <div class="figcap">Fig. 20.2 - Core / border / noise on a 15-point set,
 $\varepsilon=1.0$, MinPts $=5$. Dashed circles are $\varepsilon$-balls. Red = core, orange =
 border, grey = noise. <!-- prov: s20_dbscan.json:core_border_noise --></div>
@@ -13858,7 +14004,7 @@ Write $p\sim q$.</li>
 </ol>
 </div>
 
-<img class="fig" src="img/fig_133.png" alt="Three schematic panels: directly density-reachable with one epsilon-ball and one arrow; density-reachable as a chain of three overlapping balls; density-connected showing two two-hop paths out of a common core point o">
+<img class="fig" src="img/fig_134.png" alt="Three schematic panels: directly density-reachable with one epsilon-ball and one arrow; density-reachable as a chain of three overlapping balls; density-connected showing two two-hop paths out of a common core point o">
 <div class="figcap">Fig. 20.3 - The three relations. Red = core, orange = non-core.
 Left: one hop out of a core point. Middle: a chain, all interior points core. Right: two chains
 sharing a source $o$.</div>
@@ -14016,7 +14162,7 @@ point. <!-- prov: s20_dbscan.json:worked_example.roles --></p>
 <!-- prov: s20_dbscan.json:sklearn_agreement --></p>
 </div>
 
-<img class="fig" src="img/fig_134.png" alt="Four-panel DBSCAN trace: the eleven raw points; N1 circled and labelled noise; the Q cluster grown with five epsilon-balls; the final two clusters plus one noise point">
+<img class="fig" src="img/fig_135.png" alt="Four-panel DBSCAN trace: the eleven raw points; N1 circled and labelled noise; the Q cluster grown with five epsilon-balls; the final two clusters plus one noise point">
 <div class="figcap">Fig. 20.4 - The recomputed DBSCAN trace, $\varepsilon=2$ cm,
 MinPts $=3$. Dashed circles are the $\varepsilon$-balls of the points claimed so far. Panel (d)
 is the deck's final build. <!-- prov: s20_dbscan.json:worked_example --></div>
@@ -14048,7 +14194,7 @@ and plot. Points inside a cluster have small $k$-dist; noise points have large $
 is too small or MinPts too large; if it reports one giant cluster, the reverse.</p>
 </div>
 
-<img class="fig" src="img/fig_135.png" alt="Left: sorted 4th-nearest-neighbour distance curve with a marked knee at eps 0.691; right: the resulting DBSCAN clustering with three clusters and seven noise points">
+<img class="fig" src="img/fig_136.png" alt="Left: sorted 4th-nearest-neighbour distance curve with a marked knee at eps 0.691; right: the resulting DBSCAN clustering with three clusters and seven noise points">
 <div class="figcap">Fig. 20.5 - Choosing $\varepsilon$ from the $k$-dist curve on a
 $100$-point set ($90$ blob points $+$ $10$ uniform noise points), $k=\text{MinPts}=4$. The knee
 sits at $\varepsilon = 0.691$; running DBSCAN there recovers $3$ clusters and flags $7$ noise
@@ -14105,7 +14251,7 @@ score against - so you are back to the internal indices of §20.9.</p>
 
 <h4>20.5.2 &nbsp; The structural failure: varying density</h4>
 
-<img class="fig" src="img/fig_136.png" alt="Three panels of the same two-blob dataset clustered with eps 0.22, 0.45 and 0.80, showing the loose blob shattering at small eps and both blobs fusing at large eps">
+<img class="fig" src="img/fig_137.png" alt="Three panels of the same two-blob dataset clustered with eps 0.22, 0.45 and 0.80, showing the loose blob shattering at small eps and both blobs fusing at large eps">
 <div class="figcap">Fig. 20.6 - A tight blob ($\sigma=0.15$) beside a loose one
 ($\sigma=0.75$), MinPts $=5$. At $\varepsilon=0.22$ the tight blob is perfect but the loose one
 shatters into fragments with $51$ noise points; at $\varepsilon=0.80$ the loose blob is whole
@@ -14146,7 +14292,7 @@ objects in one cluster and recursively split until every cluster is a singleton.
 splits.</p>
 </div>
 
-<img class="fig" src="img/fig_137.png" alt="Step diagram over five leaves a to e: green left-to-right arrow labelled agglomerative AGNES on top, red right-to-left arrow labelled divisive DIANA below, with ellipse nodes showing a+b, d+e, c+de and the root">
+<img class="fig" src="img/fig_138.png" alt="Step diagram over five leaves a to e: green left-to-right arrow labelled agglomerative AGNES on top, red right-to-left arrow labelled divisive DIANA below, with ellipse nodes showing a+b, d+e, c+de and the root">
 <div class="figcap">Fig. 20.7 - The two directions over the same merge tree.</div>
 
 <h4>20.6.1 &nbsp; Linkage - how to measure the distance between two clusters</h4>
@@ -14236,7 +14382,7 @@ merge-height multisets agree exactly.
 <!-- prov: s20_hier.json:agnes.single.scipy_heights_match --></p>
 </div>
 
-<img class="fig" src="img/fig_138.png" alt="Top-left: the ten grid points with two dashed cluster circles; top-right: merge height versus number of clusters for the three linkages; bottom: three dendrograms for single, complete and average linkage with a dashed cut line">
+<img class="fig" src="img/fig_139.png" alt="Top-left: the ten grid points with two dashed cluster circles; top-right: merge height versus number of clusters for the three linkages; bottom: three dendrograms for single, complete and average linkage with a dashed cut line">
 <div class="figcap">Fig. 20.8 - AGNES on the 10 grid points. Top right: merge heights
 against clusters remaining; the jump from $2$ clusters to $1$ is the largest for every linkage,
 which is the "longest dangling edge" heuristic in numeric form. Bottom: the three dendrograms,
@@ -14425,7 +14571,7 @@ factor $B$ (max children per node) and the threshold $T$ (max radius/diameter of
 Slide 63's diagram prints $B=7$ and $L=6$.</p>
 </div>
 
-<img class="fig" src="img/fig_139.png" alt="Three-level CF-tree schematic: a root node of CF/child cells, a non-leaf node, two doubly-linked leaf nodes, and a circle of seven raw points hanging off one leaf CF entry">
+<img class="fig" src="img/fig_140.png" alt="Three-level CF-tree schematic: a root node of CF/child cells, a non-leaf node, two doubly-linked leaf nodes, and a circle of seven raw points hanging off one leaf CF entry">
 <div class="figcap">Fig. 20.9 - The CF-tree. Every cell holds a Clustering Feature and a
 child pointer; leaves are doubly linked so the leaf level can be scanned as a list. The raw
 points (bottom) are discarded - only $(N,\overrightarrow{LS},SS)$ survives.</div>
@@ -14472,7 +14618,7 @@ to single linkage. The interesting behaviour is in between - typically $c\approx
 $\alpha\approx 0.2$–$0.5$.</p>
 </div>
 
-<img class="fig" src="img/fig_140.png" alt="Three panels: one star centroid per cluster, then eight blue scattered representatives on the elongated cluster, then the same representatives pulled inward toward the centroid with red arrows">
+<img class="fig" src="img/fig_141.png" alt="Three panels: one star centroid per cluster, then eight blue scattered representatives on the elongated cluster, then the same representatives pulled inward toward the centroid with red arrows">
 <div class="figcap">Fig. 20.10 - CURE on an elongated cluster with two compact
 neighbours. Panel 1 is the square-error view (one centroid). Panel 2 places $c$ scattered
 representatives, which trace the cluster's shape. Panel 3 shrinks them toward the centroid by
@@ -14682,7 +14828,7 @@ zero-temperature, equal-weight, spherical corner of it.</p>
 
 <h4>20.8.5 &nbsp; What the extra generality buys, and what it costs</h4>
 
-<img class="fig" src="img/fig_141.png" alt="Left: k-means on an elongated cluster next to a small compact one, misassigning many points; middle: GMM with full covariance ellipses recovering both perfectly; right: the 1-D EM log-likelihood curve rising monotonically">
+<img class="fig" src="img/fig_142.png" alt="Left: k-means on an elongated cluster next to a small compact one, misassigning many points; middle: GMM with full covariance ellipses recovering both perfectly; right: the 1-D EM log-likelihood curve rising monotonically">
 <div class="figcap">Fig. 20.11 - $250$ points: one elongated, correlated cluster
 ($180$ pts) and one small compact cluster ($70$ pts). k-means reaches purity $0.768$; a
 full-covariance GMM reaches $1.000$. Right: the monotone log-likelihood of §20.8.3.
@@ -14836,7 +14982,7 @@ per-point detail is why silhouette is the practical default.</p>
 
 <h4>20.9.2 &nbsp; Sweeping $k$ on a shared dataset</h4>
 
-<img class="fig" src="img/fig_142.png" alt="Six panels: the three-blob toy dataset, WCSS elbow, Davies-Bouldin, Dunn and mean silhouette against k with a marker at k equals 3, and a per-point silhouette bar plot at k equals 3">
+<img class="fig" src="img/fig_143.png" alt="Six panels: the three-blob toy dataset, WCSS elbow, Davies-Bouldin, Dunn and mean silhouette against k with a marker at k equals 3, and a per-point silhouette bar plot at k equals 3">
 <div class="figcap">Fig. 20.12 - A $90$-point, three-blob dataset clustered with k-means
 for $k=2\ldots7$. WCSS shows an elbow at $k=3$; Davies–Bouldin is minimised at $k=3$; Dunn and
 mean silhouette are maximised at $k=3$. The last panel shows the per-point silhouettes at $k=3$.
@@ -14957,7 +15103,7 @@ NMI, not raw RI.</p>
 
 <h3>20.11 &nbsp; Choosing an algorithm</h3>
 
-<img class="fig" src="img/fig_143.png" alt="Decision flowchart from unlabelled data through questions about k, cluster shape, density variation, hierarchy and dataset size, to k-means, DBSCAN, OPTICS/HDBSCAN, AGNES/DIANA, BIRCH/CURE or GMM, all ending in a validation box">
+<img class="fig" src="img/fig_144.png" alt="Decision flowchart from unlabelled data through questions about k, cluster shape, density variation, hierarchy and dataset size, to k-means, DBSCAN, OPTICS/HDBSCAN, AGNES/DIANA, BIRCH/CURE or GMM, all ending in a validation box">
 <div class="figcap">Fig. 20.13 - Clustering-algorithm decision flowchart. Every path
 terminates in the same validation step.</div>
 
@@ -15201,7 +15347,7 @@ the loss function and therefore the whole optimisation story. Only at Q3 does th
 model", and by then most of the search space is already gone. Q4 and Q5 are drawn at the bottom not
 because they come last in importance but because they apply to <em>every</em> leaf.</p>
 
-<img class="fig" src="img/fig_144.png" alt="Master decision flowchart. A new problem arrives, then Q1 asks whether a labelled target exists. The no branch goes to unsupervised: groups via k-means or fuzzy c-means, groups with noise via DBSCAN, hierarchical or GMM, then dimensionality reduction with PCA and cluster validation with silhouette, Davies-Bouldin and Dunn. The yes branch asks what kind of target: real-valued means regression, two-plus classes means classification, counts mean a Poisson GLM, ordered categories mean a proportional-odds model. Regression and classification both flow into Q3, what the data is made of: small tabular data goes to linear or logistic models with ridge or lasso, or a single CART tree; medium to large tabular data goes to gradient boosting or random forests; image, text, audio or sequence data goes to CNNs, RNNs or Transformers. Kernel SVM and k-NN or naive Bayes appear as secondary options. Two always-on questions close the chart: class imbalance handled by threshold tuning then SMOTE, and explainability handled by SHAP.">
+<img class="fig" src="img/fig_145.png" alt="Master decision flowchart. A new problem arrives, then Q1 asks whether a labelled target exists. The no branch goes to unsupervised: groups via k-means or fuzzy c-means, groups with noise via DBSCAN, hierarchical or GMM, then dimensionality reduction with PCA and cluster validation with silhouette, Davies-Bouldin and Dunn. The yes branch asks what kind of target: real-valued means regression, two-plus classes means classification, counts mean a Poisson GLM, ordered categories mean a proportional-odds model. Regression and classification both flow into Q3, what the data is made of: small tabular data goes to linear or logistic models with ridge or lasso, or a single CART tree; medium to large tabular data goes to gradient boosting or random forests; image, text, audio or sequence data goes to CNNs, RNNs or Transformers. Kernel SVM and k-NN or naive Bayes appear as secondary options. Two always-on questions close the chart: class imbalance handled by threshold tuning then SMOTE, and explainability handled by SHAP.">
 <div class="figcap">Fig. 21.1 - The master model-selection flowchart. Leaf labels carry the section that
 derives the method.</div>
 
@@ -15231,7 +15377,7 @@ model family outright. Both belong at model-choice time.</li>
 second half of the playbook: Fig. 21.1 gets you to a family, the gallery gets you through the settings
 inside it.</p>
 
-<img class="fig" src="img/fig_145.png" alt="Twelve decision cards in a three by four grid. GLM link choice, optimizer choice, metric choice, regularisation choice, naive Bayes variant, ensemble choice, imbalance strategy, activation choice, architecture choice, kernel choice, clustering algorithm choice, and validation scheme choice. Each card lists four to five condition-to-answer rules.">
+<img class="fig" src="img/fig_146.png" alt="Twelve decision cards in a three by four grid. GLM link choice, optimizer choice, metric choice, regularisation choice, naive Bayes variant, ensemble choice, imbalance strategy, activation choice, architecture choice, kernel choice, clustering algorithm choice, and validation scheme choice. Each card lists four to five condition-to-answer rules.">
 <div class="figcap">Fig. 21.2 - Twelve per-topic decision rules on one page. Each card condenses the decision
 flowchart of the named section; the section itself carries the reasoning.</div>
 
@@ -15251,7 +15397,7 @@ $n \gtrsim 10\,d_{VC}$; at $d_{VC} = 11$ that is $n \gtrsim 110$
 <!-- prov: s21_anchors.json:vc_rule_practice --> for a usable estimate, and $n \gtrsim 1100$
 <!-- prov: s21_anchors.json:vc_rule_tight --> before the bound itself becomes non-vacuous.</p>
 
-<img class="fig" src="img/fig_146.png" alt="Log-log map of n, the number of labelled rows, against d, the number of raw features. A red line marks n equals ten times d_VC for a linear model; the shaded region above it is where the model can fit anything and hard regularisation or dimensionality reduction is required. Below the line, regions are labelled: n tiny meaning leave-one-out cross-validation and few parameters; classic tabular meaning linear models, trees, gradient boosting or kernel SVM; large tabular meaning LightGBM or linear SGD; and high-d with large n meaning deep nets for image or text. A dotted vertical line at n equals ten thousand marks where kernel SVMs get slow.">
+<img class="fig" src="img/fig_147.png" alt="Log-log map of n, the number of labelled rows, against d, the number of raw features. A red line marks n equals ten times d_VC for a linear model; the shaded region above it is where the model can fit anything and hard regularisation or dimensionality reduction is required. Below the line, regions are labelled: n tiny meaning leave-one-out cross-validation and few parameters; classic tabular meaning linear models, trees, gradient boosting or kernel SVM; large tabular meaning LightGBM or linear SGD; and high-d with large n meaning deep nets for image or text. A dotted vertical line at n equals ten thousand marks where kernel SVMs get slow.">
 <div class="figcap">Fig. 21.3 - Admissible regions in the $(n, d)$ plane. The red line is the
 $n = 10\,d_{VC}$ rule of thumb for a linear model, $d_{VC} = d+1$.</div>
 
@@ -15747,7 +15893,7 @@ training fold and it collapses to $40.0\%$ <!-- prov: s21_anchors.json:leak_cv_a
 scattered around chance, as it must be. The gap is $35.0$
 <!-- prov: s21_anchors.json:leak_inflation_pts --> percentage points of pure fiction.</p>
 
-<img class="fig" src="img/fig_147.png" alt="Two parallel pipelines. The wrong order loads all rows, then imputes and scales on all rows, picks the best k features on all rows, applies SMOTE on all rows, and only then splits into K folds and cross-validates; its 5-fold CV accuracy on pure noise is 75 percent. The right order loads all rows, splits first into a held-out test set and K folds, then inside each fold fits the imputer and scaler on the training part only, selects features on the training part only, and resamples the training part only, before tuning on validation folds and touching test once; the same data then scores 40 percent, i.e. chance.">
+<img class="fig" src="img/fig_148.png" alt="Two parallel pipelines. The wrong order loads all rows, then imputes and scales on all rows, picks the best k features on all rows, applies SMOTE on all rows, and only then splits into K folds and cross-validates; its 5-fold CV accuracy on pure noise is 75 percent. The right order loads all rows, splits first into a held-out test set and K folds, then inside each fold fits the imputer and scaler on the training part only, selects features on the training part only, and resamples the training part only, before tuning on validation folds and touching test once; the same data then scores 40 percent, i.e. chance.">
 <div class="figcap">Fig. 21.4 - The same six operations in two orders. Left leaks; right does not. The two
 result boxes are the same data and the same classifier.</div>
 
