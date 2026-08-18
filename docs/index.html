@@ -1729,6 +1729,54 @@ $$\chi^2 = \frac{9\times 177.38}{100} = 15.964 \ \text{ on } 9\ \text{df},\qquad
 <p>Expected counts (italic) are $E_{ij}=R_iC_j/n$, e.g. $50\times45/100=22.5$. Then</p>
 $$\chi^2 = \frac{7.5^2}{22.5}+\frac{7.5^2}{27.5}+\frac{7.5^2}{22.5}+\frac{7.5^2}{27.5} = 2.5+2.045+2.5+2.045 = 9.091 \ \text{ on } 1\ \text{df},\qquad p = 0.0026,$$
 <p>so attendance and outcome are not independent in this sample.</p>
+<p><strong>The same test at $3\times3$.</strong> Nothing conceptually new happens in a bigger table - the sum runs over more cells and the degrees of freedom come from counting free cells. 240 students
+<!-- prov: s02_chi3x3.json:n -->, revision level against grade band:</p>
+<div class="scrollx">
+<table>
+<tr><th></th><th>low band</th><th>mid band</th><th>high band</th><th>row total</th></tr>
+<tr><td>skipped revision</td><td class="num">40 <em>(25)</em></td><td class="num">30 <em>(30)</em></td><td class="num">10 <em>(25)</em></td><td class="num">80</td></tr>
+<tr><td>some revision</td><td class="num">25 <em>(25)</em></td><td class="num">35 <em>(30)</em></td><td class="num">20 <em>(25)</em></td><td class="num">80</td></tr>
+<tr><td>full revision</td><td class="num">10 <em>(25)</em></td><td class="num">25 <em>(30)</em></td><td class="num">45 <em>(25)</em></td><td class="num">80</td></tr>
+<tr><td><strong>column total</strong></td><td class="num"><strong>75</strong></td><td class="num"><strong>90</strong></td><td class="num"><strong>75</strong></td><td class="num"><strong>240</strong></td></tr>
+</table>
+</div>
+<!-- prov: s02_chi3x3.json:observed --><!-- prov: s02_chi3x3.json:expected --><!-- prov: s02_chi3x3.json:row_totals --><!-- prov: s02_chi3x3.json:col_totals -->
+<p>Expected counts (italic) come from the same margin product, $E_{ij}=R_iC_j/n$, e.g.
+$80\times75/240=25$ <!-- prov: s02_chi3x3.json:e11_arith -->. The degrees of freedom are
+$(r-1)(c-1)=(3-1)(3-1)=4$ <!-- prov: s02_chi3x3.json:dof -->: with all row and column totals fixed,
+you can choose only a $2\times2$ block of cells freely - the remaining five are forced. Summing
+$(O-E)^2/E$ over all nine cells (the two $0.833$s are $\tfrac{25}{30}=\tfrac56$):</p>
+<!-- prov: s02_chi3x3.json:contrib_flat_3dp -->
+$$\chi^2 = 9+0+9+0+\tfrac56+1+9+\tfrac56+16 = 45.667 \ \text{ on } 4\ \text{df},\qquad p = 2.9\times10^{-9},$$
+<!-- prov: s02_chi3x3.json:chi2_manual --><!-- prov: s02_chi3x3.json:p_sci_str -->
+<p>so revision level and grade band are decisively dependent - and note where the statistic lives: the
+four <em>corner</em> cells carry $16+9+9+9$ of the $45.667$ <!-- prov: s02_chi3x3.json:contrib -->,
+excesses where effort and band agree (skipped/low, $O=40$ against $E=25$; full/high, $O=45$ against
+$E=25$) matched by equal deficits where they disagree (skipped/high and full/low, both $O=10$ against
+$E=25$). That corner pattern - excess on the agreeing corners, deficit on the disagreeing ones - is the
+signature of a monotone association. Because $\chi^2$ grows with both $n$ and table size, report an
+effect size alongside it: Cramér's
+$V=\sqrt{\chi^2/\bigl(n\min(r-1,c-1)\bigr)}=\sqrt{45.667/480}=0.308$
+<!-- prov: s02_chi3x3.json:cramers_v -->, or $0.296$ after the Bergsma bias correction
+<!-- prov: s02_chi3x3.json:cramers_v_corrected --> - the corrected form, and the code for both, are in
+§22.2.13.</p>
+<p><strong>What does <em>not</em> carry over from $2\times2$.</strong> Four traps, all of them
+examinable. (a) <em>Yates' continuity correction is $2\times2$-only</em> - and
+<code>scipy.stats.chi2_contingency</code> applies it there <em>by default</em>: on the table of (ii) it
+returns $7.919$ <!-- prov: s02_chi3x3.json:chi2_2x2_yates -->, not the hand value $9.091$
+<!-- prov: s02_chi3x3.json:chi2_2x2_uncorrected -->; pass <code>correction=False</code> to reproduce
+the arithmetic above. On this $3\times3$ the default applies no correction at all
+<!-- prov: s02_chi3x3.json:yates_ignored_on_3x3 -->. (b) <em>The odds ratio is $2\times2$-only</em> -
+the ratio $O_{11}O_{22}/(O_{12}O_{21})$, the $2\times2$ effect measure whose logarithm reappears as
+§3's log-odds, has no single-number analogue in a $3\times3$; Cramér's $V$ is the size measure that
+survives. (c) <em>The expected-count rule bites faster</em>: the working rule wants $E_{ij}\ge 5$ in at
+least 80% of cells and no cell below $1$ (the stricter textbook form asks it of every cell, §22.2.13),
+and nine cells split the same $n$ - here the smallest is $25$
+<!-- prov: s02_chi3x3.json:min_expected -->, comfortably safe; when it fails, merge sparse categories
+or use an exact test (§22.2.13). (d) <em>Ordering is wasted</em>:
+both variables here are ordered (revision effort, grade band), and $\chi^2$ treats them as unordered
+labels - a rank measure such as Kendall's $\tau_b$ (§22.2.13) uses the ordering and is the more
+powerful test of a monotone association.</p>
 <p><strong>(iii) Goodness-of-fit.</strong> Are 100 grades spread evenly over four bands? Observed $(32,28,22,18)$ against $E=25$ each:</p>
 $$\chi^2 = \frac{49+9+9+49}{25} = 4.64 \ \text{ on } 3\ \text{df},\qquad p = 0.200,$$
 <p>so uniformity is not refuted: an imbalance of $32$ against $18$ across four bands is well within what 100 coin-flips-into-four-buckets produces by chance.</p>
